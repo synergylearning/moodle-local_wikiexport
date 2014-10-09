@@ -19,7 +19,9 @@ in the activity administration block (with javascript enabled, similar links are
 Users with the 'mod/wiki:managewiki' capability also get a 'Sort pages for export' link, that allows them to choose the order in
 which pages will appear in the export.
 
-There is an additional, global setting which allows
+There is an additional global setting which allows a copy of any wikis on the site to be sent (as a PDF) to a given email address,
+whenever they are updated (note, this will not export all wikis on the site the first time it is configured, it only sends those
+that have been updated since the email address was first entered).
 
 Customising
 ===========
