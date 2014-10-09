@@ -1,0 +1,49 @@
+.wiki-sortpages,
+.wiki-sortpages li {
+    list-style-type: none;
+}
+
+.wiki-sortpages .wikititle {
+    margin-left: 1em;
+}
+
+.wiki-sortpages .smallicon {
+    width: 16px;
+    height: 16px;
+}
+
+.jsenabled .wiki-sortpages .nojsicons {
+    display: none;
+}
+
+.wiki-sortpages .jsicons {
+    display: none;
+}
+
+.jsenabled .wiki-sortpages .jsicons {
+    display: inline;
+}
+
+.wiki-sortpages li.yui3-dd-draggable {
+    cursor: auto;
+}
+
+.wiki-sortpages li.yui3-dd-draggable .jsicons {
+    cursor: move;
+}
+
+.path-local-wikiexport .yui3-dd-proxy .nojsicons {
+    display: none;
+}
+
+.wiki-sortpages-spinner {
+    position: absolute;
+    display: none;
+    background-image: url([[pix:core|i/loading_small]]);
+    width: 16px;
+    height: 16px;
+}
+
+.wiki-sortpages-spinner.show {
+    display: block;
+}

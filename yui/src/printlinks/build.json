@@ -1,0 +1,10 @@
+{
+    "name": "moodle-local_wikiexport-printlinks",
+    "builds": {
+        "moodle-local_wikiexport-printlinks": {
+            "jsfiles": [
+                "printlinks.js"
+            ]
+        }
+    }
+}

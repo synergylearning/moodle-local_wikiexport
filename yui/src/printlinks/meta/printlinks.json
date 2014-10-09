@@ -1,0 +1,8 @@
+{
+    "moodle-local_wikiexport-printlinks": {
+        "requires": [
+            "base",
+            "node"
+        ]
+    }
+}

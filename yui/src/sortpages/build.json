@@ -1,0 +1,10 @@
+{
+    "name": "moodle-local_wikiexport-sortpages",
+    "builds": {
+        "moodle-local_wikiexport-sortpages": {
+            "jsfiles": [
+                "sortpages.js"
+            ]
+        }
+    }
+}

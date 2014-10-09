@@ -1,0 +1,13 @@
+{
+    "moodle-local_wikiexport-sortpages": {
+        "requires": [
+            "base",
+            "node",
+            "io-base",
+            "dd-constrain",
+            "dd-proxy",
+            "dd-drop",
+            "json-parse"
+        ]
+    }
+}
