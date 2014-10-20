@@ -199,8 +199,13 @@ class local_wikiexport {
         global $DB;
         $subwiki = $DB->get_record('wiki_subwikis', array('wikiid' => $this->wiki->id, 'groupid' => $this->groupid,
                                                           'userid' => $this->userid), '*', MUST_EXIST);
-        $pagefields = 'id, title, cachedcontent AS content, timecreated, timemodified, userid';
-        $pages = $DB->get_records('wiki_pages', array('subwikiid' => $subwiki->id), 'sortorder, title', $pagefields);
+        $sql = "SELECT p.id, p.title, p.cachedcontent AS content, p.timecreated, p.timemodified, p.userid
+                  FROM {wiki_pages} p
+                  LEFT JOIN {local_wikiexport_order} xo ON xo.pageid = p.id
+                 WHERE p.subwikiid = :subwikiid
+                 ORDER BY xo.sortorder, p.title";
+        $params = array('subwikiid' => $subwiki->id);
+        $pages = $DB->get_records_sql($sql, $params);
         $pageids = array_keys($pages);
         foreach ($pages as $id => $page) {
             if ($page->title == $this->wiki->firstpagetitle) {
@@ -941,9 +946,17 @@ class local_wikiexport_sortpages {
 
         // Load the pages into memory.
         $subwiki = $DB->get_record('wiki_subwikis', array('wikiid' => $this->wiki->id, 'groupid' => $this->groupid,
-                                                          'userid' => $this->userid), '*', MUST_EXIST);
-        $pagefields = 'id, title, sortorder';
-        $this->pages = $DB->get_records('wiki_pages', array('subwikiid' => $subwiki->id), 'sortorder, title', $pagefields);
+                                                          'userid' => $this->userid), '*');
+        if (!$subwiki) {
+            return;
+        }
+        $sql = "SELECT p.id, p.title, xo.sortorder, xo.id AS orderid
+                  FROM {wiki_pages} p
+                  LEFT JOIN {local_wikiexport_order} xo ON xo.pageid = p.id
+                 WHERE p.subwikiid = :subwikiid
+                 ORDER BY xo.sortorder, p.title";
+        $params = array('subwikiid' => $subwiki->id);
+        $this->pages = $DB->get_records_sql($sql, $params);
         foreach ($this->pages as $id => $page) {
             if ($page->title == $this->wiki->firstpagetitle) {
                 unset($this->pages[$id]);
@@ -957,15 +970,13 @@ class local_wikiexport_sortpages {
         foreach ($this->pages as $page) {
             if ($page->sortorder !== $sortorder) {
                 $page->sortorder = $sortorder;
-                $DB->set_field('wiki_pages', 'sortorder', $sortorder, array('id' => $page->id));
+                $this->save_sortorder($page);
             }
             $sortorder++;
         }
     }
 
     protected function move_page_to($movepage, $newpos) {
-        global $DB;
-
         if ($newpos < 0) {
             return; // Cannot move below 0.
         }
@@ -987,7 +998,7 @@ class local_wikiexport_sortpages {
                     if ($page->sortorder < $movepage->sortorder) {
                         // Move pages newpos...oldpos one space forward.
                         $page->sortorder += 1;
-                        $DB->set_field('wiki_pages', 'sortorder', $page->sortorder, array('id' => $page->id));
+                        $this->save_sortorder($page);
                     }
                 }
             } else {
@@ -995,7 +1006,7 @@ class local_wikiexport_sortpages {
                     if ($page->sortorder > $movepage->sortorder) {
                         // Move pages oldpos...newpos one space backward.
                         $page->sortorder -= 1;
-                        $DB->set_field('wiki_pages', 'sortorder', $page->sortorder, array('id' => $page->id));
+                        $this->save_sortorder($page);
                     }
                 }
             }
@@ -1008,7 +1019,22 @@ class local_wikiexport_sortpages {
 
         if ($movepage->sortorder != $newpos) {
             $movepage->sortorder = $newpos;
-            $DB->set_field('wiki_pages', 'sortorder', $newpos, array('id' => $movepage->id));
+            $this->save_sortorder($movepage);
+        }
+    }
+
+    protected function save_sortorder($page) {
+        global $DB;
+        if ($page->orderid) {
+            $DB->set_field('local_wikiexport_order', 'sortorder', $page->sortorder, array('id' => $page->orderid));
+        } else {
+            $ins = (object)array(
+                'cmid' => $this->cm->id,
+                'courseid' => $this->cm->course,
+                'pageid' => $page->id,
+                'sortorder' => $page->sortorder,
+            );
+            $page->orderid = $DB->insert_record('local_wikiexport_order', $ins);
         }
     }
 
@@ -1018,5 +1044,26 @@ class local_wikiexport_sortpages {
             $pageorder[$page->id] = $page->sortorder;
         }
         return $pageorder;
+    }
+
+    /**
+     * Clean up any local_wikiexport_order records associated with the deleted course.
+     * @param object $course details of the course that has been deleted
+     */
+    public static function course_deleted($course) {
+        global $DB;
+        $DB->delete_records('local_wikiexport_order', array('courseid' => $course->id));
+    }
+
+    /**
+     * Clean up any local_wikiexport_order records associated with the deleted wiki.
+     * @param $info
+     */
+    public static function mod_deleted($info) {
+        global $DB;
+        if ($info->modulename != 'wiki') {
+            return; // Nothing to do if it is not a wiki which was deleted.
+        }
+        $DB->delete_records('local_wikiexport_order', array('cmid' => $info->cmid));
     }
 }

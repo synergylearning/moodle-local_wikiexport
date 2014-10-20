@@ -24,12 +24,12 @@
  
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2014100900;
+$plugin->version   = 2014102004;
 $plugin->requires  = 2013051400; // Moodle 2.5.
 $plugin->cron      = DAYSECS;
 $plugin->component = 'local_wikiexport';
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '2.5+ (Build: 2014100900)';
+$plugin->release   = '2.5+ (Build: 2014102004)';
 
 $plugin->dependencies = array(
     'mod_wiki' => ANY_VERSION,

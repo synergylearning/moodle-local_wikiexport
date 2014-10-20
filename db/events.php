@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * DB changes needed during installation
+ * Event handlers
  *
  * @package   local_wikiexport
  * @copyright 2014 Davo Smith, Synergy Learning
@@ -23,9 +23,18 @@
  */
 
 defined('MOODLE_INTERNAL') || die();
-global $CFG;
-require_once($CFG->dirroot.'/local/wikiexport/db/upgradelib.php');
+$handlers = array (
+    'course_deleted' => array (
+        'handlerfile'      => '/local/wikiexport/lib.php',
+        'handlerfunction'  => 'local_wikiexport_sortpages::course_deleted',
+        'schedule'         => 'instant',
+        'internal'         => 1,
+    ),
 
-function xmldb_local_wikiexport_install() {
-    local_wikiexport_add_wiki_db_fields();
-}
+    'mod_deleted' => array (
+        'handlerfile'      => '/local/wikiexport/lib.php',
+        'handlerfunction'  => 'local_wikiexport_sortpages::mod_deleted',
+        'schedule'         => 'instant',
+        'internal'         => 1,
+    ),
+);

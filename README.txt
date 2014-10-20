@@ -4,12 +4,6 @@ Wiki export
 This plugin adds the ability to export Moodle wikis as either PDFs or epub documents.
 It was developed by Davo Smith of Synergy Learning, on behalf of the Judicial Institute for Scotland
 
-Important note
-==============
-
-To allow for sorting of the exported pages an extra field 'sortorder' is added to the existing 'wiki_pages' database table.
-This should cause no problems on your Moodle site, but you should be aware that this will happen.
-
 Usage
 =====
 
