@@ -2,7 +2,11 @@ Wiki export
 ===========
 
 This plugin adds the ability to export Moodle wikis as either PDFs or epub documents.
-It was developed by Davo Smith of Synergy Learning, on behalf of the Judicial Institute for Scotland
+It was commissioned by the Judicial Institute for Scotland, originally for their Totara LMS implementation, with Synergy Learning as the chosen partner, with Davo Smith providing the development work.
+
+Many thanks to Jackie Carter - Learning Technology Manager, and the rest of the team, at the Judicial Institute for contributing this development back in to the Moodle community.
+
+Further development of this plugin is planned for early 2015.
 
 Usage
 =====
