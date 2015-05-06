@@ -468,6 +468,10 @@ class local_wikiexport {
  * @param $unused
  */
 function local_wikiexport_extends_navigation($unused) {
+    local_wikiexport_extend_navigation($unused);
+}
+
+function local_wikiexport_extend_navigation($unused) {
     global $PAGE, $DB, $USER;
     if (!$PAGE->cm || $PAGE->cm->modname != 'wiki') {
         return;
