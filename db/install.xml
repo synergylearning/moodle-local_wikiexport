@@ -19,5 +19,15 @@
         <KEY NAME="pageid" TYPE="foreign-unique" FIELDS="pageid" REFTABLE="wiki_pages" REFFIELDS="id"/>
       </KEYS>
     </TABLE>
+    <TABLE NAME="local_wikiexport_queue" COMMENT="Queue of wikis to export">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="subwikiid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="The wiki to export"/>
+        <FIELD NAME="exportattempts" TYPE="int" LENGTH="5" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="A count of the number of times there has been an attempt to export this wiki"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+    </TABLE>
   </TABLES>
 </XMLDB>

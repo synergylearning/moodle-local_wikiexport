@@ -91,5 +91,27 @@ function xmldb_local_wikiexport_upgrade($oldversion = 0) {
         upgrade_plugin_savepoint(true, 2014102004, 'local', 'wikiexport');
     }
 
-    return true;
+    if ($oldversion < 2015071300) {
+
+        // Define table wikiexport_queue to be created.
+        $table = new xmldb_table('local_wikiexport_queue');
+
+        // Adding fields to table wikiexport_queue.
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('subwikiid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('exportattempts', XMLDB_TYPE_INTEGER, '5', null, XMLDB_NOTNULL, null, '0');
+
+        // Adding keys to table wikiexport_queue.
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, array('id'));
+
+        // Conditionally launch create table for wikiexport_queue.
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        // Wikiexport savepoint reached.
+        upgrade_plugin_savepoint(true, 2015071300, 'local', 'wikiexport');
+    }
+
+   return true;
 }

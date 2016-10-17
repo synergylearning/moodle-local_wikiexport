@@ -44,6 +44,8 @@ class local_wikiexport {
     const EXPORT_EPUB = 'epub';
     const EXPORT_PDF = 'pdf';
 
+    const MAX_EXPORT_ATTEMPTS = 2;
+
     protected static $exporttypes = array(self::EXPORT_EPUB, self::EXPORT_PDF);
 
     public function __construct($cm, $wiki, $exporttype, $userid = 0, $groupid = 0) {
@@ -136,6 +138,9 @@ class local_wikiexport {
      * @return string the path to the generated file, if not downloading directly
      */
     public function export($download = true) {
+        // Raise the max execution time to 5 min, not 30 seconds.
+        @set_time_limit(300);
+
         $pages = $this->load_pages();
         $exp = $this->start_export($download);
         $this->add_coversheet($exp);
@@ -146,7 +151,6 @@ class local_wikiexport {
     }
 
     public static function cron() {
-        global $DB;
         $config = get_config('local_wikiexport');
         if (empty($config->publishemail)) {
             return; // No email specified.
@@ -158,41 +162,146 @@ class local_wikiexport {
             return; // Don't export every wiki on the site the first time cron runs.
         }
 
-        $sql = "SELECT DISTINCT s.id, s.wikiid, s.groupid, s.userid
-                  FROM {wiki_subwikis} s
-                  JOIN {wiki_pages} p ON p.subwikiid = s.id AND p.timemodified > :lastcron
-                 ORDER BY s.wikiid";
-        $params = array('lastcron' => $config->lastcron);
-        if (!$subwikis = $DB->get_records_sql($sql, $params)) {
-            return; // No wikis updated since the last cron.
-        }
+        // Update the list of wikis waiting to be exported.
+        self::update_queue($config);
 
         $touser = (object)array(
+            'id' => -1,
             'email' => $destemail,
-            'firstname' => '',
-            'lastname' => '',
+            'maildisplay' => 0,
         );
-        $msg = get_string('wikiupdated_body', 'local_wikiexport');
-        $cm = null;
-        $wiki = null;
-        foreach ($subwikis as $subwiki) {
-            if (!$wiki || $wiki->id != $subwiki->wikiid) {
-                if (!$wiki = $DB->get_record('wiki', array('id' => $subwiki->wikiid))) {
-                    mtrace("Page updated for wiki ID {$subwiki->wikiid}, which does not exist\n");
-                    continue;
-                }
-                if (!$cm = get_coursemodule_from_instance('wiki', $wiki->id)) {
-                    mtrace("Missing course module for wiki ID {$subwiki->wikiid}\n");
-                    continue;
-                }
-            }
-            $export = new local_wikiexport($cm, $wiki, self::EXPORT_PDF, $subwiki->userid, $subwiki->groupid);
-            $filepath = $export->export(false);
-            $filename = basename($filepath);
-            email_to_user($touser, $touser, get_string('wikiupdated', 'local_wikiexport', $wiki->name), $msg, '',
-                          $filepath, $filename, false);
-            @unlink($filepath);
+        foreach (get_all_user_name_fields(false) as $fieldname) {
+            $touser->$fieldname = '';
         }
+
+        $msg = get_string('wikiupdated_body', 'local_wikiexport');
+        while ($subwiki = self::get_next_from_queue()) {
+            if ($subwiki->exportattempts == self::MAX_EXPORT_ATTEMPTS) {
+                // Already failed to export the maximum allowed times - drop an email to the user to let them know, then move on
+                // to the next wiki to export.
+                $wikiurl = new moodle_url('/mod/wiki/view.php', array('id' => $subwiki->cm->id));
+                $info = (object)array(
+                    'name' => $subwiki->wiki->name,
+                    'url' => $wikiurl->out(false),
+                    'exportattempts' => $subwiki->exportattempts,
+                );
+                $failmsg = get_string('wikiexportfailed_body', 'local_wikiexport', $info);
+                email_to_user($touser, $touser, get_string('wikiexportfailed', 'local_wikiexport', $subwiki->wiki->name), $failmsg);
+            }
+
+            // Attempt the export.
+            try {
+                $export = new local_wikiexport($subwiki->cm, $subwiki->wiki, self::EXPORT_PDF, $subwiki->userid, $subwiki->groupid);
+                $filepath = $export->export(false);
+                $filename = basename($filepath);
+                email_to_user($touser, $touser, get_string('wikiupdated', 'local_wikiexport', $subwiki->wiki->name), $msg, '',
+                              $filepath, $filename, false);
+                @unlink($filepath);
+
+                // Export successful - update the queue.
+                self::remove_from_queue($subwiki);
+            } catch(Exception $e) {
+                print_r($e);
+                print_r($subwiki);
+            }
+        }
+    }
+
+    /**
+     * Find any subwikis that have been updated since we last refeshed the export queue.
+     * Any subwikis that have been updated will have thier export attempt count reset.
+     *
+     * @param $config
+     */
+    protected static function update_queue($config) {
+        global $DB;
+
+        if (empty($config->lastqueueupdate)) {
+            $config->lastqueueupdate = $config->lastcron;
+        }
+
+        // Get a list of any wikis that have been changed since the last queue update.
+        $sql = "SELECT DISTINCT s.id, s.wikiid
+                  FROM {wiki_subwikis} s
+                  JOIN {wiki_pages} p ON p.subwikiid = s.id AND p.timemodified > :lastqueueupdate
+                 ORDER BY s.wikiid, s.id";
+        $params = array('lastqueueupdate' => $config->lastqueueupdate);
+        $subwikis = $DB->get_records_sql($sql, $params);
+
+        // Save a list of all subwikis to be exported.
+        $currentqueue = $DB->get_records('local_wikiexport_queue');
+        foreach ($subwikis as $subwiki) {
+            if (isset($currentqueue[$subwiki->id])) {
+                // A subwiki already in the queue has been updated - reset the export attempts (if non-zero).
+                $queueitem = $currentqueue[$subwiki->id];
+                if ($queueitem->exportattempts != 0) {
+                    $DB->set_field('local_wikiexport_queue', 'exportattempts', 0, array('id' => $queueitem->id));
+                }
+            } else {
+                $ins = (object)array(
+                    'subwikiid' => $subwiki->id,
+                    'exportattempts' => 0,
+                );
+                $DB->insert_record('local_wikiexport_queue', $ins, false);
+            }
+        }
+
+        // Save the timestamp to detect any future wiki export changes.
+        set_config('lastqueueupdate', time(), 'local_wikiexport');
+    }
+
+    /**
+     * Get the next subwiki in the queue - ignoring those that have already had too many export attempts.
+     * The return object includes the wiki and cm as sub-objects.
+     *
+     * @return object|null null if none left to export
+     */
+    protected static function get_next_from_queue() {
+        global $DB;
+
+        static $cm = null;
+        static $wiki = null;
+
+        $sql = "SELECT s.id, s.groupid, s.userid, s.wikiid, q.id AS queueid, q.exportattempts
+                  FROM {local_wikiexport_queue} q
+                  JOIN {wiki_subwikis} s ON s.id = q.subwikiid
+                 WHERE q.exportattempts <= :maxexportattempts
+                 ORDER BY s.wikiid";
+        $params = array('maxexportattempts' => self::MAX_EXPORT_ATTEMPTS);
+        $nextitems = $DB->get_records_sql($sql, $params, 0, 1); // Retrieve the first record found.
+        $nextitem = reset($nextitems);
+        if (!$nextitem) {
+            return null;
+        }
+
+        // Update the 'export attempts' in the database.
+        $DB->set_field('local_wikiexport_queue', 'exportattempts', $nextitem->exportattempts + 1, ['id' => $nextitem->queueid]);
+
+        // Add the wiki + cm objects to the return object.
+        if (!$wiki || $wiki->id != $nextitem->wikiid) {
+            if (!$wiki = $DB->get_record('wiki', array('id' => $nextitem->wikiid))) {
+                mtrace("Page updated for wiki ID {$nextitem->wikiid}, which does not exist\n");
+                return self::get_next_from_queue();
+            }
+            if (!$cm = get_coursemodule_from_instance('wiki', $wiki->id)) {
+                mtrace("Missing course module for wiki ID {$wiki->id}\n");
+                return self::get_next_from_queue();
+            }
+        }
+        $nextitem->wiki = $wiki;
+        $nextitem->cm = $cm;
+
+        return $nextitem;
+    }
+
+    /**
+     * Remove the subwiki from the export queue, after it has been successfully exported.
+     *
+     * @param object $subwiki
+     */
+    protected static function remove_from_queue($subwiki) {
+        global $DB;
+        $DB->delete_records('local_wikiexport_queue', array('id' => $subwiki->queueid));
     }
 
     protected function load_pages() {
@@ -307,12 +416,14 @@ class local_wikiexport {
 
     protected function export_page($exp, $page) {
         if ($this->exporttype == self::EXPORT_EPUB) {
+            /** @var LuciEPUB $exp */
             $content = '<h1>'.$page->title.'</h1>'.$page->content;
             $href = 'pageid-'.$page->id.'.html';
             $exp->add_html($content, $page->title, array('tidy' => false, 'href' => $href, 'toc' => true));
 
         } else { // PDF.
-            $exp->startPage();
+            /** @var wikiexport_pdf $exp */
+            $exp->addPage();
             $exp->setDestination('pageid-'.$page->id);
             $exp->writeHTML('<h2>'.$page->title.'</h2>');
             $exp->writeHTML($page->content);
@@ -325,6 +436,7 @@ class local_wikiexport {
         $filename = $this->get_filename($download);
 
         if ($this->exporttype == self::EXPORT_EPUB) {
+            /** @var LuciEPUB $exp */
             $exp->generate_nav();
             $out = $exp->generate();
             if ($download) {
@@ -333,7 +445,8 @@ class local_wikiexport {
                 $out->setZipFile($filename);
             }
 
-        } else { // PDF.
+        } else { // PDF
+            /** @var pdf $exp */
             if ($download) {
                 $exp->Output($filename, 'D');
             } else {
@@ -1048,26 +1161,5 @@ class local_wikiexport_sortpages {
             $pageorder[$page->id] = $page->sortorder;
         }
         return $pageorder;
-    }
-
-    /**
-     * Clean up any local_wikiexport_order records associated with the deleted course.
-     * @param object $course details of the course that has been deleted
-     */
-    public static function course_deleted($course) {
-        global $DB;
-        $DB->delete_records('local_wikiexport_order', array('courseid' => $course->id));
-    }
-
-    /**
-     * Clean up any local_wikiexport_order records associated with the deleted wiki.
-     * @param $info
-     */
-    public static function mod_deleted($info) {
-        global $DB;
-        if ($info->modulename != 'wiki') {
-            return; // Nothing to do if it is not a wiki which was deleted.
-        }
-        $DB->delete_records('local_wikiexport_order', array('cmid' => $info->cmid));
     }
 }

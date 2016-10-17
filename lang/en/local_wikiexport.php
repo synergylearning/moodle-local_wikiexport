@@ -39,5 +39,9 @@ $string['sortpages'] = 'Sort pages for export';
 $string['sortpagesintro'] = 'This is the order in which pages will currently be exported - please move pages into the order you would like them to be exported';
 $string['wikiexport:exportepub'] = 'Export wiki as epub';
 $string['wikiexport:exportpdf'] = 'Export wiki as PDF';
+$string['wikiexportfailed'] = 'Export of wiki \'{$a}\' failed';
+$string['wikiexportfailed_body'] = 'The wiki \'{$a->name}\' has been updated, but the attempt to export and email it has failed, after {$a->exportattempts} attempts. If the wiki is updated again, then further attempts will be made to export it.
+
+The wiki can be found at: {$a->url}.';
 $string['wikiupdated'] = 'Wiki \'{$a}\' updated';
 $string['wikiupdated_body'] = 'Updated export attached';

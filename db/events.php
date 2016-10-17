@@ -23,18 +23,14 @@
  */
 
 defined('MOODLE_INTERNAL') || die();
-$handlers = array (
-    'course_deleted' => array (
-        'handlerfile'      => '/local/wikiexport/lib.php',
-        'handlerfunction'  => 'local_wikiexport_sortpages::course_deleted',
-        'schedule'         => 'instant',
-        'internal'         => 1,
-    ),
 
-    'mod_deleted' => array (
-        'handlerfile'      => '/local/wikiexport/lib.php',
-        'handlerfunction'  => 'local_wikiexport_sortpages::mod_deleted',
-        'schedule'         => 'instant',
-        'internal'         => 1,
-    ),
-);
+$observers = [
+    [
+        'eventname' => '\core\event\course_deleted',
+        'callback' => '\local_wikiexport\observer::course_deleted',
+    ],
+    [
+        'eventname' => '\core\event\course_module_deleted',
+        'callback' => '\local_wikiexport\observer::course_module_deleted',
+    ],
+];

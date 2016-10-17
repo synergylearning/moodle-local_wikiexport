@@ -6,7 +6,10 @@ It was commissioned by the Judicial Institute for Scotland, originally for their
 
 Many thanks to Jackie Carter - Learning Technology Manager, and the rest of the team, at the Judicial Institute for contributing this development back in to the Moodle community.
 
-Further development of this plugin is planned for early 2015.
+Changes
+=======
+
+2016-10-17: Moodle 2.7+ compatibility fixes, better handling of background export of large wikis
 
 Usage
 =====
