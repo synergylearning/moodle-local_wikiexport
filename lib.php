@@ -688,7 +688,7 @@ class local_wikiexport_info {
             if ($this->modifiedbyid == $USER->id) {
                 $this->modifiedby = $USER;
             } else {
-                $this->modifiedby = $DB->get_record('user', array('id' => $this->modifiedbyid), get_all_user_name_fields());
+                $this->modifiedby = $DB->get_record('user', array('id' => $this->modifiedbyid), get_all_user_name_fields(true));
             }
         }
         if (!$this->modifiedby) {
