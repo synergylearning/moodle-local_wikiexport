@@ -688,15 +688,7 @@ class local_wikiexport_info {
             if ($this->modifiedbyid == $USER->id) {
                 $this->modifiedby = $USER;
             } else {
-                // Bugfix: Get all the user names required by fullname function.
-                $this->modifiedby = $DB->get_record('user', array('id' => $this->modifiedbyid),
-                        'id,
-                         firstnamephonetic,
-                         lastnamephonetic,
-                         middlename,
-                         alternatename,
-                         firstname,
-                         lastname');
+                $this->modifiedby = $DB->get_record('user', array('id' => $this->modifiedbyid), get_all_user_name_fields());
             }
         }
         if (!$this->modifiedby) {
