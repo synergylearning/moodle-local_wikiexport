@@ -24,7 +24,7 @@
  
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2016101700;
+$plugin->version   = 2021020303;
 $plugin->requires  = 2014051200; // Moodle 2.7.
 $plugin->cron      = DAYSECS;
 $plugin->component = 'local_wikiexport';
