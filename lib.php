@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
- 
+
 /**
  * Library functions
  *
@@ -21,7 +21,7 @@
  * @copyright 2014 Davo Smith, Synergy Learning
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
- 
+
 defined('MOODLE_INTERNAL') || die();
 global $CFG;
 require_once($CFG->libdir.'/pdflib.php');
@@ -688,7 +688,7 @@ class local_wikiexport_info {
             if ($this->modifiedbyid == $USER->id) {
                 $this->modifiedby = $USER;
             } else {
-                $this->modifiedby = $DB->get_record('user', array('id' => $this->modifiedbyid), 'id, firstname, lastname');
+                $this->modifiedby = $DB->get_record('user', array('id' => $this->modifiedbyid), get_all_user_name_fields(true));
             }
         }
         if (!$this->modifiedby) {

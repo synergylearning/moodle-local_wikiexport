@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
- 
+
 /**
  * Version information
  *
@@ -21,10 +21,10 @@
  * @copyright 2014 Davo Smith, Synergy Learning
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
- 
+
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2016101700;
+$plugin->version   = 2021020301;
 $plugin->requires  = 2014051200; // Moodle 2.7.
 $plugin->cron      = DAYSECS;
 $plugin->component = 'local_wikiexport';
