@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
- 
+
 /**
  * Library functions
  *
@@ -21,7 +21,7 @@
  * @copyright 2014 Davo Smith, Synergy Learning
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
- 
+
 defined('MOODLE_INTERNAL') || die();
 global $CFG;
 require_once($CFG->libdir.'/pdflib.php');
@@ -606,14 +606,16 @@ function local_wikiexport_extend_navigation($unused) {
         return;
     }
     $settingsnav = $PAGE->settingsnav;
-    $modulesettings = $settingsnav->get('modulesettings');
-    if (!$modulesettings) {
-        $modulesettings = $settingsnav->prepend(get_string('pluginadministration', 'mod_wiki'), null,
-                                                navigation_node::TYPE_SETTING, null, 'modulesettings');
-    }
+    if ($settingsnav) {
+        $modulesettings = $settingsnav->get('modulesettings');
+        if (!$modulesettings) {
+            $modulesettings = $settingsnav->prepend(get_string('pluginadministration', 'mod_wiki'), null,
+                                                    navigation_node::TYPE_SETTING, null, 'modulesettings');
+        }
 
-    foreach ($links as $name => $url) {
-        $modulesettings->add($name, $url, navigation_node::TYPE_SETTING);
+        foreach ($links as $name => $url) {
+            $modulesettings->add($name, $url, navigation_node::TYPE_SETTING);
+        }
     }
 
     // Use javascript to insert the pdf/epub links.
