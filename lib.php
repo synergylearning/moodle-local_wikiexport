@@ -23,10 +23,14 @@
  */
 
 defined('MOODLE_INTERNAL') || die();
+
 global $CFG;
 require_once($CFG->libdir.'/pdflib.php');
 require_once($CFG->dirroot.'/local/wikiexport/luciepub/LuciEPUB.php');
 
+/**
+ * The local_wikiexport class.
+ */
 class local_wikiexport {
     /** @var object */
     protected $cm;
@@ -41,13 +45,34 @@ class local_wikiexport {
     /** @var object */
     protected $groupid;
 
+    /**
+     * 'epub' constant.
+     */
     const EXPORT_EPUB = 'epub';
+    /**
+     *'pdf' constant.
+     */
     const EXPORT_PDF = 'pdf';
 
+    /**
+     * MAX_EXPORT_ATTEMPSTS constant.
+     */
     const MAX_EXPORT_ATTEMPTS = 2;
 
+    /**
+     * @var string[]
+     */
     protected static $exporttypes = array(self::EXPORT_EPUB, self::EXPORT_PDF);
 
+    /**
+     * Constructor method.
+     *
+     * @param object $cm
+     * @param object $wiki
+     * @param string $exporttype
+     * @param int $userid
+     * @param int $groupid
+     */
     public function __construct($cm, $wiki, $exporttype, $userid = 0, $groupid = 0) {
         $this->cm = $cm;
         $this->wiki = $wiki;
@@ -71,6 +96,18 @@ class local_wikiexport {
         $this->wikiinfo = new local_wikiexport_info();
     }
 
+    /**
+     * Gets the links.
+     *
+     * @param object $cm
+     * @param null $userid
+     * @param null $groupid
+     *
+     * @return array
+     *
+     * @throws coding_exception
+     * @throws moodle_exception
+     */
     public static function get_links($cm, $userid = null, $groupid = null) {
         $ret = array();
         $context = context_module::instance($cm->id);
@@ -106,6 +143,12 @@ class local_wikiexport {
         return $ret;
     }
 
+    /**
+     * Checks access permissions.
+     *
+     * @throws coding_exception
+     * @throws required_capability_exception
+     */
     public function check_access() {
         global $USER;
         $context = context_module::instance($this->cm->id);
@@ -150,16 +193,26 @@ class local_wikiexport {
         return $this->end_export($exp, $download);
     }
 
+    /**
+     * Runs the cron.
+     *
+     * @throws coding_exception
+     * @throws dml_exception
+     * @throws moodle_exception
+     */
     public static function cron() {
         $config = get_config('local_wikiexport');
         if (empty($config->publishemail)) {
-            return; // No email specified.
+            // No email specified.
+            return;
         }
         if (!$destemail = trim($config->publishemail)) {
-            return; // Email is empty.
+            // Email is empty.
+            return;
         }
         if (empty($config->lastcron)) {
-            return; // Don't export every wiki on the site the first time cron runs.
+            // Don't export every wiki on the site the first time cron runs.
+            return;
         }
 
         // Update the list of wikis waiting to be exported.
@@ -200,18 +253,18 @@ class local_wikiexport {
 
                 // Export successful - update the queue.
                 self::remove_from_queue($subwiki);
-            } catch(Exception $e) {
-                print_r($e);
-                print_r($subwiki);
+            } catch (Exception $e) {
+                echo $e->getMessage();
+                echo 'Cannot export subwiki from ' . $subwiki->wiki->name;
             }
         }
     }
 
     /**
-     * Find any subwikis that have been updated since we last refeshed the export queue.
-     * Any subwikis that have been updated will have thier export attempt count reset.
+     * Find any subwikis that have been updated since we last refreshed the export queue.
+     * Any subwikis that have been updated will have their export attempt count reset.
      *
-     * @param $config
+     * @param object $config
      */
     protected static function update_queue($config) {
         global $DB;
@@ -252,9 +305,9 @@ class local_wikiexport {
 
     /**
      * Get the next subwiki in the queue - ignoring those that have already had too many export attempts.
-     * The return object includes the wiki and cm as sub-objects.
+     * The return object includes the wiki and cm as sub-objects. Method will null if none left to export.
      *
-     * @return object|null null if none left to export
+     * @return object|null
      */
     protected static function get_next_from_queue() {
         global $DB;
@@ -304,6 +357,13 @@ class local_wikiexport {
         $DB->delete_records('local_wikiexport_queue', array('id' => $subwiki->queueid));
     }
 
+    /**
+     * Loads the pages.
+     *
+     * @return array
+     *
+     * @throws dml_exception
+     */
     protected function load_pages() {
         global $DB;
         $subwiki = $DB->get_record('wiki_subwikis', array('wikiid' => $this->wiki->id, 'groupid' => $this->groupid,
@@ -319,7 +379,9 @@ class local_wikiexport {
         foreach ($pages as $id => $page) {
             if ($page->title == $this->wiki->firstpagetitle) {
                 unset($pages[$id]);
-                $pages = array($id => $page) + $pages; // Move the first page to the start of the list.
+
+                // Move the first page to the start of the list.
+                $pages = array($id => $page) + $pages;
                 break;
             }
         }
@@ -341,6 +403,14 @@ class local_wikiexport {
         return $pages;
     }
 
+    /**
+     * Fixes internal links.
+     *
+     * @param object $page
+     * @param array $pageids
+     *
+     * @throws moodle_exception
+     */
     protected function fix_internal_links($page, $pageids) {
         if ($this->exporttype == self::EXPORT_PDF) {
             // Fix internal TOC links to include the pageid (to make them unique across all pages).
@@ -366,7 +436,8 @@ class local_wikiexport {
                     $find = $urls[$idx];
                     if ($this->exporttype == self::EXPORT_PDF) {
                         $replace = '#pageid-'.$pageid;
-                    } else { // Epub - link to correct page in export.
+                    } else {
+                        // Epub - link to correct page in export.
                         $replace = 'pageid-'.$pageid.'.html';
                     }
                     $page->content = str_replace($find, $replace, $page->content);
@@ -389,6 +460,15 @@ class local_wikiexport {
         $page->content = preg_replace('|<a href="edit\.php.*?\[edit\]</a>|', '', $page->content);
     }
 
+    /**
+     * Starts the page export.
+     *
+     * @param bool $download
+     *
+     * @return wikiexport_epub|wikiexport_pdf
+     *
+     * @throws coding_exception
+     */
     protected function start_export($download) {
         global $CFG;
         $exp = null;
@@ -401,7 +481,8 @@ class local_wikiexport {
                 $exp->add_language($CFG->lang);
             }
             $exp->set_publisher(get_string('publishername', 'local_wikiexport'));
-        } else { // PDF.
+        } else {
+            // PDF.
             $exp = new wikiexport_pdf();
             $restricttocontext = false;
             if ($download) {
@@ -414,15 +495,20 @@ class local_wikiexport {
         return $exp;
     }
 
+    /**
+     * Exports a page.
+     *
+     * @param LuciEPUB|wikiexport_pdf $exp
+     * @param object $page
+     */
     protected function export_page($exp, $page) {
         if ($this->exporttype == self::EXPORT_EPUB) {
-            /** @var LuciEPUB $exp */
             $content = '<h1>'.$page->title.'</h1>'.$page->content;
             $href = 'pageid-'.$page->id.'.html';
             $exp->add_html($content, $page->title, array('tidy' => false, 'href' => $href, 'toc' => true));
 
-        } else { // PDF.
-            /** @var wikiexport_pdf $exp */
+        } else {
+            // PDF.
             $exp->addPage();
             $exp->setDestination('pageid-'.$page->id);
             $exp->writeHTML('<h2>'.$page->title.'</h2>');
@@ -430,13 +516,19 @@ class local_wikiexport {
         }
     }
 
+    /**
+     * Ends the export.
+     *
+     * @param LuciEPUB|wikiexport_pdf $exp
+     * @param bool $download
+     * @return array|false|float|int|string|string[]|null
+     */
     protected function end_export($exp, $download) {
         global $CFG;
 
         $filename = $this->get_filename($download);
 
         if ($this->exporttype == self::EXPORT_EPUB) {
-            /** @var LuciEPUB $exp */
             $exp->generate_nav();
             $out = $exp->generate();
             if ($download) {
@@ -445,8 +537,8 @@ class local_wikiexport {
                 $out->setZipFile($filename);
             }
 
-        } else { // PDF
-            /** @var pdf $exp */
+        } else {
+            // PDF.
             if ($download) {
                 $exp->Output($filename, 'D');
             } else {
@@ -460,6 +552,13 @@ class local_wikiexport {
         return $filename;
     }
 
+    /**
+     * Gets the file's name.
+     *
+     * @param bool $download
+     * @return array|false|float|int|string|null
+     * @throws coding_exception
+     */
     protected function get_filename($download) {
         $info = (object)array(
             'timestamp' => userdate(time(), '%Y-%m-%d %H:%M'),
@@ -468,7 +567,8 @@ class local_wikiexport {
         $filename = get_string('filename', 'local_wikiexport', $info);
         if ($this->exporttype == self::EXPORT_EPUB) {
             $filename .= '.epub';
-        } else { // PDF.
+        } else {
+            // PDF.
             $filename .= '.pdf';
         }
 
@@ -483,6 +583,11 @@ class local_wikiexport {
         return $filename;
     }
 
+    /**
+     * Adds a coversheet.
+     *
+     * @param LuciEPUB|pdf $exp
+     */
     protected function add_coversheet($exp) {
         if ($this->exporttype == self::EXPORT_EPUB) {
             $this->add_coversheet_epub($exp);
@@ -491,6 +596,11 @@ class local_wikiexport {
         }
     }
 
+    /**
+     * Adds the coversheet to the ePub file.
+     *
+     * @param LuciEPUB $exp
+     */
     protected function add_coversheet_epub(LuciEPUB $exp) {
         global $CFG;
 
@@ -523,6 +633,11 @@ class local_wikiexport {
         $exp->add_spine_item($html, 'cover.html');
     }
 
+    /**
+     * Adds the coversheet to the PDF file.
+     *
+     * @param pdf $exp
+     */
     protected function add_coversheet_pdf(pdf $exp) {
         global $CFG;
 
@@ -552,6 +667,13 @@ class local_wikiexport {
         }
     }
 
+    /**
+     * Gets the coversheet information.
+     *
+     * @return string|null
+     *
+     * @throws coding_exception
+     */
     protected function get_coversheet_info() {
         $info = array();
         if ($this->wikiinfo->has_timemodified()) {
@@ -578,12 +700,21 @@ class local_wikiexport {
 /**
  * Insert the 'Export as epub' and 'Export as PDF' links into the navigation.
  *
- * @param $unused
+ * @param null $unused
  */
 function local_wikiexport_extends_navigation($unused) {
     local_wikiexport_extend_navigation($unused);
 }
 
+/**
+ * Adds elements to the navigation.
+ *
+ * @param null $unused
+ *
+ * @throws coding_exception
+ * @throws dml_exception
+ * @throws moodle_exception
+ */
 function local_wikiexport_extend_navigation($unused) {
     global $PAGE, $DB, $USER;
     if (!$PAGE->cm || $PAGE->cm->modname != 'wiki') {
@@ -605,12 +736,14 @@ function local_wikiexport_extend_navigation($unused) {
     if (!$links = local_wikiexport::get_links($PAGE->cm, $userid, $groupid)) {
         return;
     }
+
     $settingsnav = $PAGE->settingsnav;
+
     if ($settingsnav) {
         $modulesettings = $settingsnav->get('modulesettings');
         if (!$modulesettings) {
             $modulesettings = $settingsnav->prepend(get_string('pluginadministration', 'mod_wiki'), null,
-                                                    navigation_node::TYPE_SETTING, null, 'modulesettings');
+                navigation_node::TYPE_SETTING, null, 'modulesettings');
         }
 
         foreach ($links as $name => $url) {
@@ -628,6 +761,13 @@ function local_wikiexport_extend_navigation($unused) {
     $PAGE->requires->yui_module('moodle-local_wikiexport-printlinks', 'M.local_wikiexport.printlinks.init', array($jslinks));
 }
 
+/**
+ * Runs the cron.
+ *
+ * @throws coding_exception
+ * @throws dml_exception
+ * @throws moodle_exception
+ */
 function local_wikiexport_cron() {
     local_wikiexport::cron();
 }
@@ -636,16 +776,41 @@ function local_wikiexport_cron() {
  * Class local_wikiexport_info
  */
 class local_wikiexport_info {
+    /**
+     * @var int
+     */
     protected $timecreated = 0;
+    /**
+     * @var int
+     */
     protected $timemodified = 0;
+    /**
+     * @var null
+     */
     protected $modifiedbyid = null;
+    /**
+     * @var null
+     */
     protected $modifiedby = null;
+    /**
+     * @var int
+     */
     protected $timeprinted = 0;
 
+    /**
+     * Constructor method.
+     */
     public function __construct() {
         $this->timeprinted = time();
     }
 
+    /**
+     * Updates the time attribute.
+     *
+     * @param int $timecreated
+     * @param int $timemodified
+     * @param int $modifiedbyid
+     */
     public function update_times($timecreated, $timemodified, $modifiedbyid) {
         if (!$this->timecreated || $this->timecreated > $timecreated) {
             $this->timecreated = $timecreated;
@@ -659,30 +824,66 @@ class local_wikiexport_info {
         }
     }
 
+    /**
+     * Checks if created time is available.
+     *
+     * @return bool
+     */
     public function has_timecreated() {
         return (bool)$this->timecreated;
     }
 
+    /**
+     * Checks if modified time is available.
+     *
+     * @return bool
+     */
     public function has_timemodified() {
         return (bool)$this->timemodified;
     }
 
+    /**
+     * Checks if print time is available.
+     *
+     * @return bool
+     */
     public function has_timeprinted() {
         return (bool)$this->timeprinted;
     }
 
+    /**
+     * Gets the formatted created time.
+     *
+     * @return string
+     */
     public function format_timecreated() {
         return userdate($this->timecreated);
     }
 
+    /**
+     * Gets the formatted modified time.
+     *
+     * @return string
+     */
     public function format_timemodified() {
         return userdate($this->timemodified);
     }
 
+    /**
+     * Gets the formatted time of print.
+     *
+     * @return string
+     */
     public function format_timeprinted() {
         return userdate($this->timeprinted);
     }
 
+    /**
+     * Gets the 'modified by' attribute.
+     *
+     * @return lang_string|string
+     * @throws dml_exception
+     */
     public function get_modifiedby() {
         global $USER, $DB;
 
@@ -690,7 +891,12 @@ class local_wikiexport_info {
             if ($this->modifiedbyid == $USER->id) {
                 $this->modifiedby = $USER;
             } else {
-                $this->modifiedby = $DB->get_record('user', array('id' => $this->modifiedbyid), 'id, ' . get_all_user_name_fields(true));
+                $this->modifiedby = $DB->get_record(
+                    'user',
+                    array(
+                        'id' => $this->modifiedbyid),
+                    'id, ' . get_all_user_name_fields(true)
+                );
             }
         }
         if (!$this->modifiedby) {
@@ -702,9 +908,13 @@ class local_wikiexport_info {
 
 /**
  * Convert an image URL into a stored_file object, if it refers to a local file.
- * @param $fileurl
+ *
+ * @param string $fileurl
  * @param context $restricttocontext (optional) if set, only files from this wiki will be included
- * @return null|stored_file
+ *
+ * @return bool|stored_file|null
+ *
+ * @throws coding_exception
  */
 function local_wikiexport_get_image_file($fileurl, $restricttocontext = null) {
     global $CFG;
@@ -714,17 +924,21 @@ function local_wikiexport_get_image_file($fileurl, $restricttocontext = null) {
 
     $fs = get_file_storage();
     $params = substr($fileurl, strlen($CFG->wwwroot.'/pluginfile.php'));
-    if (substr($params, 0, 1) == '?') { // Slasharguments off.
+    if (substr($params, 0, 1) == '?') {
+        // Slasharguments off.
         $pos = strpos($params, 'file=');
         $params = substr($params, $pos + 5);
-    } else { // Slasharguments on.
+    } else {
+        // Slasharguments on.
         if (($pos = strpos($params, '?')) !== false) {
             $params = substr($params, 0, $pos - 1);
         }
     }
     $params = urldecode($params);
     $params = explode('/', $params);
-    array_shift($params); // Remove empty first param.
+    array_shift($params);
+
+    // Remove empty first param.
     $contextid = (int)array_shift($params);
     $component = clean_param(array_shift($params), PARAM_COMPONENT);
     $filearea  = clean_param(array_shift($params), PARAM_AREA);
@@ -745,13 +959,15 @@ function local_wikiexport_get_image_file($fileurl, $restricttocontext = null) {
 
     if ($restricttocontext) {
         if ($component != 'mod_wiki' || $contextid != $restricttocontext->id) {
-            return null; // Only allowed to include files directly from this wiki.
+            // Only allowed to include files directly from this wiki.
+            return null;
         }
     }
 
     if (!$file = $fs->get_file($contextid, $component, $filearea, $itemid, $filepath, $filename)) {
         if ($itemid) {
-            $filepath = '/'.$itemid.$filepath; // See if there was no itemid in the original URL.
+            // See if there was no itemid in the original URL.
+            $filepath = '/'.$itemid.$filepath;
             $itemid = 0;
             $file = $fs->get_file($contextid, $component, $filename, $itemid, $filepath, $filename);
         }
@@ -768,9 +984,20 @@ function local_wikiexport_get_image_file($fileurl, $restricttocontext = null) {
  */
 class wikiexport_pdf extends pdf {
 
+    /**
+     * @var bool
+     */
     protected $directimageload = false;
+    /**
+     * @var bool
+     */
     protected $restricttocontext = false;
 
+    /**
+     * Sets the direct image load flag.
+     *
+     * @param false $restricttocontext
+     */
     public function use_direct_image_load($restricttocontext = false) {
         $this->directimageload = true;
         $this->restricttocontext = $restricttocontext;
@@ -781,7 +1008,7 @@ class wikiexport_pdf extends pdf {
      * a) Convert any spaces in filenames into '%20' (as TCPDF seems to incorrectly do the opposite).
      * b) Make any broken file errors non-fatal (replace the image with an error message).
      *
-     * @param $file
+     * @param string $file
      * @param string $x
      * @param string $y
      * @param int $w
@@ -801,9 +1028,27 @@ class wikiexport_pdf extends pdf {
      * @param bool $alt
      * @param array $altimgs
      */
-    public function Image($file, $x = '', $y = '', $w = 0, $h = 0, $type = '', $link = '', $align = '', $resize = false,
-                          $dpi = 300, $palign = '', $ismask = false, $imgmask = false, $border = 0, $fitbox = false, $hidden = false,
-                          $fitonpage = false, $alt = false, $altimgs = array()) {
+    public function image(
+        $file,
+        $x = '',
+        $y = '',
+        $w = 0,
+        $h = 0,
+        $type = '',
+        $link = '',
+        $align = '',
+        $resize = false,
+        $dpi = 300,
+        $palign = '',
+        $ismask = false,
+        $imgmask = false,
+        $border = 0,
+        $fitbox = false,
+        $hidden = false,
+        $fitonpage = false,
+        $alt = false,
+        $altimgs = array()
+    ) {
         if ($this->directimageload) {
             // Get the image data directly from the Moodle files API (needed when generating within cron, instead of downloading).
             $file = $this->get_image_data($file);
@@ -826,18 +1071,25 @@ class wikiexport_pdf extends pdf {
         }
     }
 
-    public function Header() {
+    /**
+     * Adds a header.
+     */
+    public function header() {
         // No header.
     }
 
-    public function Footer() {
+    /**
+     * Adds a footer.
+     */
+    public function footer() {
         // No footer.
     }
 
     /**
      * Copy the image data from the Moodle files API and return it directly.
      *
-     * @param $fileurl
+     * @param string $fileurl
+     *
      * @return string either the original fileurl param or the file content with '@' appended to the start.
      */
     protected function get_image_data($fileurl) {
@@ -850,15 +1102,17 @@ class wikiexport_pdf extends pdf {
     /**
      * Override the existing function to create anchor destinations for any '<a name="x">' tags.
      *
-     * @param $dom
-     * @param $key
-     * @param $cell
+     * @param array $dom
+     * @param int $key
+     * @param bool $cell
+     *
      * @return mixed
      */
-    protected function openHTMLTagHandler($dom, $key, $cell) {
+    protected function openhtmltaghandler($dom, $key, $cell) {
         $tag = $dom[$key];
         if (array_key_exists('name', $tag['attribute'])) {
-            $this->setDestination($tag['attribute']['name']); // Store the destination for TOC links.
+            // Store the destination for TOC links.
+            $this->setDestination($tag['attribute']['name']);
         }
         return parent::openHTMLTagHandler($dom, $key, $cell);
     }
@@ -868,6 +1122,17 @@ class wikiexport_pdf extends pdf {
  * Class wikiexport_epub
  */
 class wikiexport_epub extends LuciEPUB {
+    /**
+     * Adds HTML elements.
+     *
+     * @param string $html
+     * @param string $title
+     * @param array $config
+     *
+     * @return mixed|string
+     *
+     * @throws coding_exception
+     */
     public function add_html($html, $title, $config) {
         if ($config['tidy'] && class_exists('tidy')) {
             $tidy = new tidy();
@@ -902,8 +1167,22 @@ class wikiexport_epub extends LuciEPUB {
         return $title;
     }
 
-    public function add_spine_item($data, $href = NULL,
-                                   $fallback = NULL, $properties = NULL) {
+    /**
+     * Adds a spine item.
+     *
+     * @param string $data
+     * @param null $href
+     * @param null $fallback
+     * @param null $properties
+     *
+     * @return array
+     */
+    public function add_spine_item(
+        $data,
+        $href = null,
+        $fallback = null,
+        $properties = null
+    ) {
         if (strpos('<html', $data) === false) {
             $data = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE html>
@@ -920,15 +1199,44 @@ class wikiexport_epub extends LuciEPUB {
     }
 }
 
+/**
+ * The local_wikiexport_sortpages class.
+ */
 class local_wikiexport_sortpages {
+    /**
+     * @var
+     */
     protected $cm;
+    /**
+     * @var
+     */
     protected $wiki;
+    /**
+     * @var int
+     */
     protected $userid;
+    /**
+     * @var int
+     */
     protected $groupid;
 
+    /**
+     * @var null
+     */
     protected $action = null;
+    /**
+     * @var array
+     */
     protected $pages = array();
 
+    /**
+     * Constructor method.
+     *
+     * @param object $cm
+     * @param object $wiki
+     * @param int $userid
+     * @param int $groupid
+     */
     public function __construct($cm, $wiki, $userid, $groupid) {
         $this->cm = $cm;
         $this->wiki = $wiki;
@@ -946,11 +1254,24 @@ class local_wikiexport_sortpages {
         }
     }
 
+    /**
+     * Checks access permissions.
+     *
+     * @throws required_capability_exception
+     */
     public function check_access() {
         $context = context_module::instance($this->cm->id);
         require_capability('mod/wiki:managewiki', $context);
     }
 
+    /**
+     * Processes the action.
+     *
+     * @param string $action
+     *
+     * @throws coding_exception
+     * @throws moodle_exception
+     */
     public function process($action) {
         global $PAGE;
 
@@ -997,6 +1318,14 @@ class local_wikiexport_sortpages {
         }
     }
 
+    /**
+     * Generates the output.
+     *
+     * @return string
+     *
+     * @throws coding_exception
+     * @throws moodle_exception
+     */
     public function output() {
         global $OUTPUT, $PAGE;
 
@@ -1017,7 +1346,8 @@ class local_wikiexport_sortpages {
             $item = '';
 
             $nojsicons = '';
-            if ($page->sortorder != 0) { // Cannot move the first page.
+            if ($page->sortorder != 0) {
+                // Cannot move the first page.
                 $baseurl = new moodle_url($PAGE->url, array('pageid' => $page->id, 'sesskey' => sesskey()));
                 if ($page->sortorder > 1) {
                     $url = new moodle_url($baseurl, array('action' => 'moveup'));
@@ -1095,27 +1425,40 @@ class local_wikiexport_sortpages {
         }
     }
 
+    /**
+     * Moves the page to a new position.
+     *
+     * @param int $movepage
+     * @param int $newpos
+     */
     protected function move_page_to($movepage, $newpos) {
         if ($newpos < 0) {
-            return; // Cannot move below 0.
+            // Cannot move below 0.
+            return;
         }
         if ($movepage->sortorder == $newpos) {
-            return; // No change in position.
+            // No change in position.
+            return;
         }
-        $move = -1; // Other pages need to move backward.
+
+        // Other pages need to move backward.
+        $move = -1;
+
         if ($movepage->sortorder > $newpos) {
-            $move = 1; // Other pages need to move forward.
+            // Other pages need to move forward.
+            $move = 1;
         }
 
         $maxpos = 0;
         foreach ($this->pages as $page) {
             if ($page->id == $movepage->id) {
-                continue; // Update the page being moved after moving all other pages.
+                // Update the page being moved after moving all other pages.
+                continue;
             }
             if ($move > 0) {
                 if ($page->sortorder >= $newpos) {
                     if ($page->sortorder < $movepage->sortorder) {
-                        // Move pages newpos...oldpos one space forward.
+                        // Move pages newpos to oldpos one space forward.
                         $page->sortorder += 1;
                         $this->save_sortorder($page);
                     }
@@ -1123,7 +1466,7 @@ class local_wikiexport_sortpages {
             } else {
                 if ($page->sortorder <= $newpos) {
                     if ($page->sortorder > $movepage->sortorder) {
-                        // Move pages oldpos...newpos one space backward.
+                        // Move pages oldpos to newpos one space backward.
                         $page->sortorder -= 1;
                         $this->save_sortorder($page);
                     }
@@ -1133,7 +1476,8 @@ class local_wikiexport_sortpages {
         }
 
         if ($newpos > $maxpos) {
-            $newpos = $maxpos + 1; // Limit to one more than the maximum of the other sortorders.
+            // Limit to one more than the maximum of the other sortorders.
+            $newpos = $maxpos + 1;
         }
 
         if ($movepage->sortorder != $newpos) {
@@ -1142,6 +1486,13 @@ class local_wikiexport_sortpages {
         }
     }
 
+    /**
+     * Saves the sort order.
+     *
+     * @param object $page
+     *
+     * @throws dml_exception
+     */
     protected function save_sortorder($page) {
         global $DB;
         if ($page->orderid) {
@@ -1157,6 +1508,11 @@ class local_wikiexport_sortpages {
         }
     }
 
+    /**
+     * Gets the new page order.
+     *
+     * @return array
+     */
     protected function get_new_pageorder() {
         $pageorder = array();
         foreach ($this->pages as $page) {

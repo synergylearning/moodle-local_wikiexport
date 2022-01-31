@@ -1,20 +1,19 @@
 <?php
-/**
- * Class to create and manage a Zip file.
- *
- * Initially inspired by CreateZipFile by Rochak Chauhan  www.rochakchauhan.com (http://www.phpclasses.org/browse/package/2322.html)
- * and
- * http://www.pkware.com/documents/casestudies/APPNOTE.TXT Zip file specification.
- *
- * License: GNU LGPL, Attribution required for commercial implementations, requested for everything else.
- *
- * @author A. Grandt <php@grandt.com>
- * @copyright 2009-2013 A. Grandt
- * @license GNU LGPL 2.1
- * @link http://www.phpclasses.org/package/6110
- * @link https://github.com/Grandt/PHPZip
- * @version 1.50
- */
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 /*
  * Modified
  * 2012-12-04 Mikael Ylikoski
@@ -26,125 +25,344 @@
  *
  * 2014-01-10 Mikael Ylikoski
  *   - Renamed class to LuciZip
+ *
+ * version 1.50
+ */
+
+
+/**
+ * LuciZip class and functions - Class to create and manage a Zip file.
+ *
+ * Initially inspired by Createzipfile by Rochak Chauhan  www.rochakchauhan.com (http://www.phpclasses.org/browse/package/2322.html)
+ * and
+ * http://www.pkware.com/documents/casestudies/APPNOTE.TXT Zip file specification.
+ *
+ * License: GNU LGPL, Attribution required for commercial implementations, requested for everything else.
+ *
+ * @author A. Grandt <php@grandt.com>
+ * @package   local_wikiexport
+ * @copyright 2009-2013 A. Grandt
+ * @license GNU LGPL 2.1
+ * @link http://www.phpclasses.org/package/6110
+ * @link https://github.com/Grandt/PHPZip
  */
 class LuciZip {
+    /**
+     * VERSION constant.
+     */
     const VERSION = 1.50;
+    // Local file header signature.
+    /**
+     * ZIP_LOCAL_FILE_HEADER constant.
+     */
+    const ZIP_LOCAL_FILE_HEADER = "\x50\x4b\x03\x04";
+    // Central file header signature.
+    /**
+     * ZIP_CENTRAL_FILE_HEADER constant.
+     */
+    const ZIP_CENTRAL_FILE_HEADER = "\x50\x4b\x01\x02";
+    // End of Central directory record.
+    /**
+     * ZIP_END_OF_CENTRAL_DIRECTORY constant.
+     */
+    const ZIP_END_OF_CENTRAL_DIRECTORY = "\x50\x4b\x05\x06\x00\x00\x00\x00";
+    // Permission 755 drwxr-xr-x = (((S_IFDIR | 0755) << 16) | S_DOS_D).
+    /**
+     * EXT_FILE_ATTR_DIR constant.
+     */
+    const EXT_FILE_ATTR_DIR = 010173200020;
+    // Permission 644 -rw-r--r-- = (((S_IFREG | 0644) << 16) | S_DOS_A).
+    /**
+     * EXT_FILE_ATTR_FILE constant.
+     */
+    const EXT_FILE_ATTR_FILE = 020151000040;
+    // Version needed to extract.
+    /**
+     * ATTR_VERSION_TO_EXTRACT constant.
+     */
+    const ATTR_VERSION_TO_EXTRACT = "\x14\x00";
+    // Made By Version.
+    /**
+     * ATTR_MADE_BY_VERSION constant.
+     */
+    const ATTR_MADE_BY_VERSION = "\x1E\x03";
 
-    const ZIP_LOCAL_FILE_HEADER = "\x50\x4b\x03\x04"; // Local file header signature
-    const ZIP_CENTRAL_FILE_HEADER = "\x50\x4b\x01\x02"; // Central file header signature
-    const ZIP_END_OF_CENTRAL_DIRECTORY = "\x50\x4b\x05\x06\x00\x00\x00\x00"; //end of Central directory record
+    // Unix file types.
+    // Named pipe (fifo).
+    /**
+     * S_IFIFO constant.
+     */
+    const S_IFIFO  = 0010000;
+    // Character special.
+    /**
+     * S_IFCHR constant.
+     */
+    const S_IFCHR  = 0020000;
+    // Directory.
+    /**
+     * S_IFDIR constant.
+     */
+    const S_IFDIR  = 0040000;
+    // Block special.
+    /**
+     * S_IFBLK constant.
+     */
+    const S_IFBLK  = 0060000;
+    // Regular.
+    /**
+     * S_IFREG constant.
+     */
+    const S_IFREG  = 0100000;
+    // Symbolic link.
+    /**
+     * S_IFLNK constant.
+     */
+    const S_IFLNK  = 0120000;
+    // Socket.
+    /**
+     * S_IFSOCK constant.
+     */
+    const S_IFSOCK = 0140000;
 
-    const EXT_FILE_ATTR_DIR = 010173200020;  // Permission 755 drwxr-xr-x = (((S_IFDIR | 0755) << 16) | S_DOS_D);
-    const EXT_FILE_ATTR_FILE = 020151000040; // Permission 644 -rw-r--r-- = (((S_IFREG | 0644) << 16) | S_DOS_A);
+    // Bits setuid/setgid/sticky bits, the same as for chmod.
+    // Set user id on execution.
+    /**
+     * S_ISUID constant.
+     */
+    const S_ISUID  = 0004000;
+    // Set group id on execution.
+    /**
+     * S_ISGID constant.
+     */
+    const S_ISGID  = 0002000;
+    // Sticky bit.
+    /**
+     * S_ISTXT constant.
+     */
+    const S_ISTXT  = 0001000;
 
-    const ATTR_VERSION_TO_EXTRACT = "\x14\x00"; // Version needed to extract
-    const ATTR_MADE_BY_VERSION = "\x1E\x03"; // Made By Version
+    // And of course, the other 12 bits are for the permissions, the same as for chmod:
+    // when addding these up, you can also just write the permissions as a simgle octal number
+    // ie. 0755. The leading 0 specifies octal notation.
+    // RWX mask for owner.
+    /**
+     * S_IRWXU constant.
+     */
+    const S_IRWXU  = 0000700;
+    // R for owner.
+    /**
+     * S_IRUSR constant.
+     */
+    const S_IRUSR  = 0000400;
+    // W for owner.
+    /**
+     * S_IWUSR constant.
+     */
+    const S_IWUSR  = 0000200;
+    // X for owner.
+    /**
+     * S_IXUSR constant.
+     */
+    const S_IXUSR  = 0000100;
+    // RWX mask for group.
+    /**
+     * S_IRWXG constant.
+     */
+    const S_IRWXG  = 0000070;
+    // R for group.
+    /**
+     * S_IRGRP constant.
+     */
+    const S_IRGRP  = 0000040;
+    // W for group.
+    /**
+     * S_IWGRP constant.
+     */
+    const S_IWGRP  = 0000020;
+    // X for group.
+    /**
+     *
+     */
+    const S_IXGRP  = 0000010;
+    // RWX mask for other.
+    /**
+     * S_IRWXO constant.
+     */
+    const S_IRWXO  = 0000007;
+    // R for other.
+    /**
+     * S_IROTH constant.
+     */
+    const S_IROTH  = 0000004;
+    // W for other.
+    /**
+     * S_IWOTH constant.
+     */
+    const S_IWOTH  = 0000002;
+    // X for other.
+    /**
+     * S_IXOTH constant.
+     */
+    const S_IXOTH  = 0000001;
+    // Save swapped text even after use.
+    /**
+     * S_ISVTX constant.
+     */
+    const S_ISVTX  = 0001000;
 
-	// Unix file types
-	const S_IFIFO  = 0010000; // named pipe (fifo)
-	const S_IFCHR  = 0020000; // character special
-	const S_IFDIR  = 0040000; // directory
-	const S_IFBLK  = 0060000; // block special
-	const S_IFREG  = 0100000; // regular
-	const S_IFLNK  = 0120000; // symbolic link
-	const S_IFSOCK = 0140000; // socket
+    // Filetype, sticky and permissions are added up, and shifted 16 bits left BEFORE adding the DOS flags.
+    // DOS file type flags, we really only use the S_DOS_D flag.
+    // DOS flag for Archive.
+    /**
+     * S_DOS_A constant.
+     */
+    const S_DOS_A  = 0000040;
+    // DOS flag for Directory.
+    /**
+     * S_DOS_D constant.
+     */
+    const S_DOS_D  = 0000020;
+    // DOS flag for Volume.
+    /**
+     * S_DOS_V constant.
+     */
+    const S_DOS_V  = 0000010;
+    // DOS flag for System.
+    /**
+     * S_DOS_S constant.
+     */
+    const S_DOS_S  = 0000004;
+    // DOS flag for Hidden.
+    /**
+     * S_DOS_H constant.
+     */
+    const S_DOS_H  = 0000002;
+    // DOS flag for Read Only.
+    /**
+     * S_DOS_R constant.
+     */
+    const S_DOS_R  = 0000001;
 
-	// setuid/setgid/sticky bits, the same as for chmod:
-
-	const S_ISUID  = 0004000; // set user id on execution
-	const S_ISGID  = 0002000; // set group id on execution
-	const S_ISTXT  = 0001000; // sticky bit
-
-	// And of course, the other 12 bits are for the permissions, the same as for chmod:
-	// When addding these up, you can also just write the permissions as a simgle octal number
-	// ie. 0755. The leading 0 specifies octal notation.
-	const S_IRWXU  = 0000700; // RWX mask for owner
-	const S_IRUSR  = 0000400; // R for owner
-	const S_IWUSR  = 0000200; // W for owner
-	const S_IXUSR  = 0000100; // X for owner
-	const S_IRWXG  = 0000070; // RWX mask for group
-	const S_IRGRP  = 0000040; // R for group
-	const S_IWGRP  = 0000020; // W for group
-	const S_IXGRP  = 0000010; // X for group
-	const S_IRWXO  = 0000007; // RWX mask for other
-	const S_IROTH  = 0000004; // R for other
-	const S_IWOTH  = 0000002; // W for other
-	const S_IXOTH  = 0000001; // X for other
-	const S_ISVTX  = 0001000; // save swapped text even after use
-
-	// Filetype, sticky and permissions are added up, and shifted 16 bits left BEFORE adding the DOS flags.
-
-	// DOS file type flags, we really only use the S_DOS_D flag.
-
-	const S_DOS_A  = 0000040; // DOS flag for Archive
-	const S_DOS_D  = 0000020; // DOS flag for Directory
-	const S_DOS_V  = 0000010; // DOS flag for Volume
-	const S_DOS_S  = 0000004; // DOS flag for System
-	const S_DOS_H  = 0000002; // DOS flag for Hidden
-	const S_DOS_R  = 0000001; // DOS flag for Read Only
-
-    private $zipMemoryThreshold = 1048576; // Autocreate tempfile if the zip data exceeds 1048576 bytes (1 MB)
-
-    private $zipData = NULL;
-    private $zipFile = NULL;
-    private $zipComment = NULL;
-    private $cdRec = array(); // central directory
-    private $offset = 0;
-    private $isFinalized = FALSE;
-    private $addExtraField = TRUE;
-
-    private $streamChunkSize = 65536;
-    private $streamFilePath = NULL;
-    private $streamTimestamp = NULL;
-    private $streamFileComment = NULL;
-    private $streamFile = NULL;
-    private $streamData = NULL;
-    private $streamFileLength = 0;
-	private $streamExtFileAttr = null;
+    // Autocreate tempfile if the zip data exceeds 1048576 bytes (1 MB).
+    /**
+     * @var int
+     */
+    private $zipmemorythreshold = 1048576;
 
     /**
-     * Constructor.
-     *
-     * @param boolean $useZipFile Write temp zip data to tempFile? Default FALSE
+     * @var string|null
      */
-    function __construct($useZipFile = FALSE) {
-        if ($useZipFile) {
-            $this->zipFile = tmpfile();
+    private $zipdata = null;
+    /**
+     * @var false|resource|null
+     */
+    private $zipfile = null;
+    /**
+     * @var null
+     */
+    private $zipcomment = null;
+    /**
+     * Central directory.
+     *
+     * @var array
+     */
+    private $cdrec = array();
+    /**
+     * @var int
+     */
+    private $offset = 0;
+    /**
+     * @var bool
+     */
+    private $isfinalized = false;
+    /**
+     * @var bool
+     */
+    private $addextrafield = true;
+
+    /**
+     * @var int
+     */
+    private $streamchunksize = 65536;
+    /**
+     * @var null
+     */
+    private $streamfilepath = null;
+    /**
+     * @var null
+     */
+    private $streamtimestamp = null;
+    /**
+     * @var null
+     */
+    private $streamfilecomment = null;
+    /**
+     * @var null
+     */
+    private $streamfile = null;
+    /**
+     * @var null
+     */
+    private $streamdata = null;
+    /**
+     * @var int
+     */
+    private $streamfilelength = 0;
+    /**
+     * @var null
+     */
+    private $streamextfileattr = null;
+
+    /**
+     * Constructor method.
+     * Write temp zip data to tempFile? Default FALSE.
+     *
+     * @param boolean $usezipfile
+     */
+    public function __construct($usezipfile = false) {
+        if ($usezipfile) {
+            $this->zipfile = tmpfile();
         } else {
-            $this->zipData = "";
+            $this->zipdata = "";
         }
     }
 
-    function __destruct() {
-        if (is_resource($this->zipFile)) {
-            fclose($this->zipFile);
+    /**
+     * Destructor method.
+     */
+    public function __destruct() {
+        if (is_resource($this->zipfile)) {
+            fclose($this->zipfile);
         }
-        $this->zipData = NULL;
+        $this->zipdata = null;
     }
 
     /**
      * Extra fields on the Zip directory records are Unix time codes needed for compatibility on the default Mac zip archive tool.
      * These are enabled as default, as they do no harm elsewhere and only add 26 bytes per file added.
      *
-     * @param bool $setExtraField TRUE (default) will enable adding of extra fields, anything else will disable it.
+     * TRUE (default) will enable adding of extra fields, anything else will disable it.
+     *
+     * @param bool $setextrafield
      */
-    function setExtraField($setExtraField = TRUE) {
-        $this->addExtraField = ($setExtraField === TRUE);
+    public function setextrafield($setextrafield = true) {
+        $this->addextrafield = ($setextrafield === true);
     }
 
     /**
      * Set Zip archive comment.
      *
-     * @param string $newComment New comment. NULL to clear.
+     * @param string $newcomment New comment. NULL to clear.
+     *
      * @return bool $success
      */
-    public function setComment($newComment = NULL) {
-        if ($this->isFinalized) {
-            return FALSE;
+    public function setcomment($newcomment = null) {
+        if ($this->isfinalized) {
+            return false;
         }
-        $this->zipComment = $newComment;
+        $this->zipcomment = $newcomment;
 
-        return TRUE;
+        return true;
     }
 
     /**
@@ -153,163 +371,231 @@ class LuciZip {
      * This can be used at any time, even after the Zip Archive have been finalized. Any previous file will be closed.
      * Warning: If the given file already exists, it will be overwritten.
      *
-     * @param string $fileName
+     * @param string $filename
+     *
      * @return bool $success
      */
-    public function setZipFile($fileName) {
-        if (is_file($fileName)) {
-            unlink($fileName);
+    public function setzipfile($filename) {
+        if (is_file($filename)) {
+            unlink($filename);
         }
-        $fd=fopen($fileName, "x+b");
-        if (is_resource($this->zipFile)) {
-            rewind($this->zipFile);
-            while (!feof($this->zipFile)) {
-                fwrite($fd, fread($this->zipFile, $this->streamChunkSize));
+        $fd = fopen($filename, "x+b");
+        if (is_resource($this->zipfile)) {
+            rewind($this->zipfile);
+            while (!feof($this->zipfile)) {
+                fwrite($fd, fread($this->zipfile, $this->streamchunksize));
             }
 
-            fclose($this->zipFile);
+            fclose($this->zipfile);
         } else {
-            fwrite($fd, $this->zipData);
-            $this->zipData = NULL;
+            fwrite($fd, $this->zipdata);
+            $this->zipdata = null;
         }
-        $this->zipFile = $fd;
+        $this->zipfile = $fd;
 
-        return TRUE;
+        return true;
     }
 
     /**
      * Add an empty directory entry to the zip archive.
      * Basically this is only used if an empty directory is added.
      *
-     * @param string $directoryPath Directory Path and name to be added to the archive.
-     * @param int    $timestamp     (Optional) Timestamp for the added directory, if omitted or set to 0, the current time will be used.
-     * @param string $fileComment   (Optional) Comment to be added to the archive for this directory. To use fileComment, timestamp must be given.
-	 * @param int    $extFileAttr   (Optional) The external file reference, use generateExtAttr to generate this.
+     * @param string $directorypath Directory path and name to be added to the archive.
+     * @param int    $timestamp     (Optional) Timestamp for the added directory,
+     *                              if omitted or set to 0, the current time will be used.
+     * @param string $filecomment   (Optional) Comment to be added to the archive for this directory.
+     *                              To use filecomment, timestamp must be given.
+     * @param int    $extfileattr   (Optional) The external file reference, use generateextattr() to generate this.
+     *
      * @return bool $success
      */
-    public function addDirectory($directoryPath, $timestamp = 0, $fileComment = NULL, $extFileAttr = self::EXT_FILE_ATTR_DIR) {
-        if ($this->isFinalized) {
-            return FALSE;
+    public function adddirectory($directorypath, $timestamp = 0, $filecomment = null, $extfileattr = self::EXT_FILE_ATTR_DIR) {
+        if ($this->isfinalized) {
+            return false;
         }
-        $directoryPath = str_replace("\\", "/", $directoryPath);
-        $directoryPath = rtrim($directoryPath, "/");
+        $directorypath = str_replace("\\", "/", $directorypath);
+        $directorypath = rtrim($directorypath, "/");
 
-        if (strlen($directoryPath) > 0) {
-            $this->buildZipEntry($directoryPath.'/', $fileComment, "\x00\x00", "\x00\x00", $timestamp, "\x00\x00\x00\x00", 0, 0, $extFileAttr);
-            return TRUE;
+        if (strlen($directorypath) > 0) {
+            $this->buildzipentry(
+                $directorypath.'/',
+                $filecomment, "\x00\x00",
+                "\x00\x00", $timestamp,
+                "\x00\x00\x00\x00",
+                0,
+                0,
+                $extfileattr
+            );
+
+            return true;
         }
-        return FALSE;
+        return false;
     }
 
     /**
      * Add a file to the archive at the specified location and file name.
      *
      * @param string $data        File data.
-     * @param string $filePath    Filepath and name to be used in the archive.
-     * @param int    $timestamp   (Optional) Timestamp for the added file, if omitted or set to 0, the current time will be used.
-     * @param string $fileComment (Optional) Comment to be added to the archive for this file. To use fileComment, timestamp must be given.
+     * @param string $filepath    filepath and name to be used in the archive.
+     * @param int    $timestamp   (Optional) Timestamp for the added file,
+     *                            if omitted or set to 0, the current time will be used.
+     * @param string $filecomment (Optional) Comment to be added to the archive for this file.
+     *                            To use filecomment, timestamp must be given.
      * @param bool   $compress    (Optional) Compress file, if set to FALSE the file will only be stored. Default TRUE.
-	 * @param int    $extFileAttr (Optional) The external file reference, use generateExtAttr to generate this.
+     * @param int    $extfileattr (Optional) The external file reference, use generateextattr() to generate this.
+     *
      * @return bool $success
      */
-    public function addFile($data, $filePath, $timestamp = 0, $fileComment = NULL, $compress = TRUE, $extFileAttr = self::EXT_FILE_ATTR_FILE) {
-        if ($this->isFinalized) {
-            return FALSE;
+    public function addfile(
+        $data,
+        $filepath,
+        $timestamp = 0,
+        $filecomment = null,
+        $compress = true,
+        $extfileattr = self::EXT_FILE_ATTR_FILE
+    ) {
+        if ($this->isfinalized) {
+            return false;
         }
 
         if (is_resource($data) && get_resource_type($data) == "stream") {
-            $this->addLargeFile($data, $filePath, $timestamp, $fileComment, $extFileAttr);
-            return FALSE;
+            $this->addlargefile($data, $filepath, $timestamp, $filecomment, $extfileattr);
+            return false;
         }
 
-        $gzData = "";
-        $gzType = "\x08\x00"; // Compression type 8 = deflate
-        $gpFlags = "\x00\x00"; // General Purpose bit flags for compression type 8 it is: 0=Normal, 1=Maximum, 2=Fast, 3=super fast compression.
-        $dataLength = strlen($data);
-        $fileCRC32 = pack("V", crc32($data));
+        $gzdata = "";
+        // Compression type 8 = deflate.
+        $gztype = "\x08\x00";
+        // General Purpose bit flags for compression type 8 it is: 0=Normal, 1=Maximum, 2=Fast, 3=super fast compression.
+        $gpflags = "\x00\x00";
+        $datalength = strlen($data);
+        $filecrc32 = pack("V", crc32($data));
 
         if ($compress) {
-            $gzTmp = gzcompress($data);
-            $gzData = substr(substr($gzTmp, 0, strlen($gzTmp) - 4), 2); // gzcompress adds a 2 byte header and 4 byte CRC we can't use.
-            // The 2 byte header does contain useful data, though in this case the 2 parameters we'd be interrested in will always be 8 for compression type, and 2 for General purpose flag.
-            $gzLength = strlen($gzData);
+            $gztmp = gzcompress($data);
+            // NOTE: gzcompress adds a 2 byte header and 4 byte CRC we can't use.
+            $gzdata = substr(substr($gztmp, 0, strlen($gztmp) - 4), 2);
+            // The 2 byte header does contain useful data, though in this case the 2 parameters
+            // we'd be interested in will always be 8 for compression type,
+            // and 2 for General purpose flag.
+            $gzlength = strlen($gzdata);
         } else {
-            $gzLength = $dataLength;
+            $gzlength = $datalength;
         }
 
-        if ($gzLength >= $dataLength) {
-            $gzLength = $dataLength;
-            $gzData = $data;
-            $gzType = "\x00\x00"; // Compression type 0 = stored
-            $gpFlags = "\x00\x00"; // Compression type 0 = stored
+        if ($gzlength >= $datalength) {
+            $gzlength = $datalength;
+            $gzdata = $data;
+            // Compression type 0 = stored.
+            $gztype = "\x00\x00";
+            // Compression type 0 = stored.
+            $gpflags = "\x00\x00";
         }
 
-        if (!is_resource($this->zipFile) && ($this->offset + $gzLength) > $this->zipMemoryThreshold) {
+        if (!is_resource($this->zipfile) && ($this->offset + $gzlength) > $this->zipmemorythreshold) {
             $this->zipflush();
         }
 
-        $this->buildZipEntry($filePath, $fileComment, $gpFlags, $gzType, $timestamp, $fileCRC32, $gzLength, $dataLength, $extFileAttr);
+        $this->buildzipentry(
+            $filepath,
+            $filecomment,
+            $gpflags,
+            $gztype,
+            $timestamp,
+            $filecrc32,
+            $gzlength,
+            $datalength,
+            $extfileattr
+        );
 
-        $this->zipwrite($gzData);
+        $this->zipwrite($gzdata);
 
-        return TRUE;
+        return true;
     }
 
     /**
-     * Add the content to a directory.
-     *
+     * Adds the content to a directory.
      * @author Adam Schmalhofer <Adam.Schmalhofer@gmx.de>
      * @author A. Grandt
      *
-     * @param string $realPath       Path on the file system.
-     * @param string $zipPath        Filepath and name to be used in the archive.
-     * @param bool   $recursive      Add content recursively, default is TRUE.
-     * @param bool   $followSymlinks Follow and add symbolic links, if they are accessible, default is TRUE.
-     * @param array &$addedFiles     Reference to the added files, this is used to prevent duplicates, efault is an empty array.
-     *                               If you start the function by parsing an array, the array will be populated with the realPath
-     *                               and zipPath kay/value pairs added to the archive by the function.
-	 * @param bool   $overrideFilePermissions Force the use of the file/dir permissions set in the $extDirAttr
-	 *							     and $extFileAttr parameters.
-	 * @param int    $extDirAttr     Permissions for directories.
-	 * @param int    $extFileAttr    Permissions for files.
+     * @param string $realpath       Path on the file system.
+     * @param string $zippath        filepath and name to be used in the archive.
+     * @param bool $recursive        Add content recursively, default is TRUE.
+     * @param bool $followsymlinks   Follow and add symbolic links, if they are accessible, default is TRUE.
+     * @param array $addedfiles      Reference to the added files, this is used to prevent duplicates, efault is an empty array.
+     *                               If you start the function by parsing an array, the array will be populated with the realpath
+     *                               and zippath kay/value pairs added to the archive by the function.
+     * @param bool $overridefilepermissions Force the use of the file/dir permissions set in the $extdirattr
+     *                                 and $extfileattr parameters.
+     * @param int $extdirattr        Permissions for directories.
+     * @param int $extfileattr       Permissions for files.
      */
-    public function addDirectoryContent($realPath, $zipPath, $recursive = TRUE, $followSymlinks = TRUE, &$addedFiles = array(),
-					$overrideFilePermissions = FALSE, $extDirAttr = self::EXT_FILE_ATTR_DIR, $extFileAttr = self::EXT_FILE_ATTR_FILE) {
-        if (file_exists($realPath) && !isset($addedFiles[realpath($realPath)])) {
-            if (is_dir($realPath)) {
-				if ($overrideFilePermissions) {
-	                $this->addDirectory($zipPath, 0, null, $extDirAttr);
-				} else {
-					$this->addDirectory($zipPath, 0, null, self::getFileExtAttr($realPath));
-				}
+    public function adddirectoryontent(
+        $realpath,
+        $zippath,
+        $recursive = true,
+        $followsymlinks = true,
+        &$addedfiles = array(),
+        $overridefilepermissions = false,
+        $extdirattr = self::EXT_FILE_ATTR_DIR,
+        $extfileattr = self::EXT_FILE_ATTR_FILE
+    ) {
+        if (file_exists($realpath) && !isset($addedfiles[realpath($realpath)])) {
+            if (is_dir($realpath)) {
+                if ($overridefilepermissions) {
+                             $this->adddirectory($zippath, 0, null, $extdirattr);
+                } else {
+                             $this->adddirectory($zippath, 0, null, self::getfileextattr($realpath));
+                }
             }
 
-            $addedFiles[realpath($realPath)] = $zipPath;
+            $addedfiles[realpath($realpath)] = $zippath;
 
-            $iter = new DirectoryIterator($realPath);
+            $iter = new DirectoryIterator($realpath);
             foreach ($iter as $file) {
                 if ($file->isDot()) {
                     continue;
                 }
-                $newRealPath = $file->getPathname();
-                $newZipPath = self::pathJoin($zipPath, $file->getFilename());
+                $newrealpath = $file->getPathname();
+                $newzippath = self::pathjoin($zippath, $file->getfilename());
 
-                if (file_exists($newRealPath) && ($followSymlinks === TRUE || !is_link($newRealPath))) {
-                    if ($file->isFile()) {
-                        $addedFiles[realpath($newRealPath)] = $newZipPath;
-						if ($overrideFilePermissions) {
-							$this->addLargeFile($newRealPath, $newZipPath, 0, null, $extFileAttr);
-						} else {
-							$this->addLargeFile($newRealPath, $newZipPath, 0, null, self::getFileExtAttr($newRealPath));
-						}
-                    } else if ($recursive === TRUE) {
-                        $this->addDirectoryContent($newRealPath, $newZipPath, $recursive, $followSymlinks, $addedFiles, $overrideFilePermissions, $extDirAttr, $extFileAttr);
+                if (file_exists($newrealpath) && ($followsymlinks === true || !is_link($newrealpath))) {
+                    if ($file->isfile()) {
+                        $addedfiles[realpath($newrealpath)] = $newzippath;
+                        if ($overridefilepermissions) {
+                                           $this->addlargefile(
+                                               $newrealpath,
+                                               $newzippath,
+                                               0,
+                                               null,
+                                               $extfileattr
+                                           );
+                        } else {
+                                           $this->addlargefile(
+                                               $newrealpath,
+                                               $newzippath,
+                                               0,
+                                               null,
+                                               self::getfileextattr($newrealpath)
+                                           );
+                        }
+                    } else if ($recursive === true) {
+                        $this->adddirectoryontent(
+                            $newrealpath,
+                            $newzippath,
+                            $recursive,
+                            $followsymlinks,
+                            $addedfiles,
+                            $overridefilepermissions,
+                            $extdirattr,
+                            $extfileattr
+                        );
                     } else {
-						if ($overrideFilePermissions) {
-							$this->addDirectory($zipPath, 0, null, $extDirAttr);
-						} else {
-							$this->addDirectory($zipPath, 0, null, self::getFileExtAttr($newRealPath));
-						}
+                        if ($overridefilepermissions) {
+                                           $this->adddirectory($zippath, 0, null, $extdirattr);
+                        } else {
+                                           $this->adddirectory($zippath, 0, null, self::getfileextattr($newrealpath));
+                        }
                     }
                 }
             }
@@ -319,83 +605,94 @@ class LuciZip {
     /**
      * Add a file to the archive at the specified location and file name.
      *
-     * @param string $dataFile    File name/path.
-     * @param string $filePath    Filepath and name to be used in the archive.
+     * @param string $datafile    File name/path.
+     * @param string $filepath    filepath and name to be used in the archive.
      * @param int    $timestamp   (Optional) Timestamp for the added file, if omitted or set to 0, the current time will be used.
-     * @param string $fileComment (Optional) Comment to be added to the archive for this file. To use fileComment, timestamp must be given.
-	 * @param int    $extFileAttr (Optional) The external file reference, use generateExtAttr to generate this.
+     * @param string $filecomment (Optional) Comment to be added to the archive for this file.
+     *                            To use filecomment, timestamp must be given.
+     * @param int    $extfileattr (Optional) The external file reference, use generateextattr() to generate this.
+     *
      * @return bool $success
      */
-    public function addLargeFile($dataFile, $filePath, $timestamp = 0, $fileComment = NULL, $extFileAttr = self::EXT_FILE_ATTR_FILE)   {
-        if ($this->isFinalized) {
-            return FALSE;
+    public function addlargefile(
+        $datafile,
+        $filepath,
+        $timestamp = 0,
+        $filecomment = null,
+        $extfileattr = self::EXT_FILE_ATTR_FILE
+    ) {
+        if ($this->isfinalized) {
+            return false;
         }
 
-        if (is_string($dataFile) && is_file($dataFile)) {
-            $this->processFile($dataFile, $filePath, $timestamp, $fileComment, $extFileAttr);
-        } else if (is_resource($dataFile) && get_resource_type($dataFile) == "stream") {
-            $fh = $dataFile;
-            $this->openStream($filePath, $timestamp, $fileComment, $extFileAttr);
+        if (is_string($datafile) && is_file($datafile)) {
+            $this->processfile($datafile, $filepath, $timestamp, $filecomment, $extfileattr);
+        } else if (is_resource($datafile) && get_resource_type($datafile) == "stream") {
+            $fh = $datafile;
+            $this->openstream($filepath, $timestamp, $filecomment, $extfileattr);
 
             while (!feof($fh)) {
-                $this->addStreamData(fread($fh, $this->streamChunkSize));
+                $this->addstreamdata(fread($fh, $this->streamchunksize));
             }
-            $this->closeStream($this->addExtraField);
+            $this->closestream($this->addextrafield);
         }
-        return TRUE;
+        return true;
     }
 
     /**
      * Create a stream to be used for large entries.
      *
-     * @param string $filePath    Filepath and name to be used in the archive.
+     * @param string $filepath    filepath and name to be used in the archive.
      * @param int    $timestamp   (Optional) Timestamp for the added file, if omitted or set to 0, the current time will be used.
-     * @param string $fileComment (Optional) Comment to be added to the archive for this file. To use fileComment, timestamp must be given.
-	 * @param int    $extFileAttr (Optional) The external file reference, use generateExtAttr to generate this.
+     * @param string $filecomment (Optional) Comment to be added to the archive for this file.
+     *                            To use filecomment, timestamp must be given.
+     * @param int    $extfileattr (Optional) The external file reference, use generateextattr to generate this.
+     *
      * @return bool $success
      */
-    public function openStream($filePath, $timestamp = 0, $fileComment = null, $extFileAttr = self::EXT_FILE_ATTR_FILE)   {
+    public function openstream($filepath, $timestamp = 0, $filecomment = null, $extfileattr = self::EXT_FILE_ATTR_FILE) {
         if (!function_exists('sys_get_temp_dir')) {
             die ("ERROR: Zip " . self::VERSION . " requires PHP version 5.2.1 or above if large files are used.");
         }
 
-        if ($this->isFinalized) {
-            return FALSE;
+        if ($this->isfinalized) {
+            return false;
         }
 
         $this->zipflush();
 
-        if (strlen($this->streamFilePath) > 0) {
-            $this->closeStream();
+        if (strlen($this->streamfilepath) > 0) {
+            $this->closestream();
         }
 
-        $this->streamFile = tempnam(sys_get_temp_dir(), 'Zip');
-        $this->streamData = fopen($this->streamFile, "wb");
-        $this->streamFilePath = $filePath;
-        $this->streamTimestamp = $timestamp;
-        $this->streamFileComment = $fileComment;
-        $this->streamFileLength = 0;
-		$this->streamExtFileAttr = $extFileAttr;
+        $this->streamfile = tempnam(sys_get_temp_dir(), 'Zip');
+        $this->streamdata = fopen($this->streamfile, "wb");
+        $this->streamfilepath = $filepath;
+        $this->streamtimestamp = $timestamp;
+        $this->streamfilecomment = $filecomment;
+        $this->streamfilelength = 0;
+        $this->streamextfileattr = $extfileattr;
 
-        return TRUE;
+        return true;
     }
 
     /**
      * Add data to the open stream.
      *
      * @param string $data
+     *
      * @return mixed length in bytes added or FALSE if the archive is finalized or there are no open stream.
      */
-    public function addStreamData($data) {
-        if ($this->isFinalized || strlen($this->streamFilePath) == 0) {
-            return FALSE;
+    public function addstreamdata($data) {
+        if ($this->isfinalized || strlen($this->streamfilepath) == 0) {
+            return false;
         }
 
-        $length = fwrite($this->streamData, $data, strlen($data));
+        $length = fwrite($this->streamdata, $data, strlen($data));
         if ($length != strlen($data)) {
             die ("<p>Length mismatch</p>\n");
         }
-        $this->streamFileLength += $length;
+        $this->streamfilelength += $length;
 
         return $length;
     }
@@ -405,76 +702,109 @@ class LuciZip {
      *
      * @return bool $success
      */
-    public function closeStream() {
-        if ($this->isFinalized || strlen($this->streamFilePath) == 0) {
-            return FALSE;
+    public function closestream() {
+        if ($this->isfinalized || strlen($this->streamfilepath) == 0) {
+            return false;
         }
 
-        fflush($this->streamData);
-        fclose($this->streamData);
+        fflush($this->streamdata);
+        fclose($this->streamdata);
 
-        $this->processFile($this->streamFile, $this->streamFilePath, $this->streamTimestamp, $this->streamFileComment, $this->streamExtFileAttr);
+        $this->processfile(
+            $this->streamfile,
+            $this->streamfilepath,
+            $this->streamtimestamp,
+            $this->streamfilecomment,
+            $this->streamextfileattr
+        );
 
-        $this->streamData = null;
-        $this->streamFilePath = null;
-        $this->streamTimestamp = null;
-        $this->streamFileComment = null;
-        $this->streamFileLength = 0;
-		$this->streamExtFileAttr = null;
+        $this->streamdata = null;
+        $this->streamfilepath = null;
+        $this->streamtimestamp = null;
+        $this->streamfilecomment = null;
+        $this->streamfilelength = 0;
+        $this->streamextfileattr = null;
 
         // Windows is a little slow at times, so a millisecond later, we can unlink this.
-        unlink($this->streamFile);
+        unlink($this->streamfile);
 
-        $this->streamFile = null;
+        $this->streamfile = null;
 
-        return TRUE;
+        return true;
     }
 
-    private function processFile($dataFile, $filePath, $timestamp = 0, $fileComment = null, $extFileAttr = self::EXT_FILE_ATTR_FILE) {
-        if ($this->isFinalized) {
-            return FALSE;
+    /**
+     * Processes the given file.
+     *
+     * @param string $datafile
+     * @param sring $filepath
+     * @param int $timestamp
+     * @param null $filecomment
+     * @param int $extfileattr
+     *
+     * @return false|void
+     */
+    private function processfile(
+        $datafile,
+        $filepath,
+        $timestamp = 0,
+        $filecomment = null,
+        $extfileattr = self::EXT_FILE_ATTR_FILE
+    ) {
+        if ($this->isfinalized) {
+            return false;
         }
 
         $tempzip = tempnam(sys_get_temp_dir(), 'ZipStream');
 
         $zip = new ZipArchive;
-        if ($zip->open($tempzip) === TRUE) {
-            $zip->addFile($dataFile, 'file');
+        if ($zip->open($tempzip) === true) {
+            $zip->addfile($datafile, 'file');
             $zip->close();
         }
 
-        $file_handle = fopen($tempzip, "rb");
-        $stats = fstat($file_handle);
-        $eof = $stats['size']-72;
+        $filehandle = fopen($tempzip, "rb");
+        $stats = fstat($filehandle);
+        $eof = $stats['size'] - 72;
 
-        fseek($file_handle, 6);
+        fseek($filehandle, 6);
 
-        $gpFlags = fread($file_handle, 2);
-        $gzType = fread($file_handle, 2);
-        fread($file_handle, 4);
-        $fileCRC32 = fread($file_handle, 4);
-        $v = unpack("Vval", fread($file_handle, 4));
-        $gzLength = $v['val'];
-        $v = unpack("Vval", fread($file_handle, 4));
-        $dataLength = $v['val'];
+        $gpflags = fread($filehandle, 2);
+        $gztype = fread($filehandle, 2);
+        fread($filehandle, 4);
+        $filecrc32 = fread($filehandle, 4);
+        $v = unpack("Vval", fread($filehandle, 4));
+        $gzlength = $v['val'];
+        $v = unpack("Vval", fread($filehandle, 4));
+        $datalength = $v['val'];
 
-        $this->buildZipEntry($filePath, $fileComment, $gpFlags, $gzType, $timestamp, $fileCRC32, $gzLength, $dataLength, $extFileAttr);
+        $this->buildzipentry(
+            $filepath,
+            $filecomment,
+            $gpflags,
+            $gztype,
+            $timestamp,
+            $filecrc32,
+            $gzlength,
+            $datalength,
+            $extfileattr
+        );
 
-        fseek($file_handle, 34);
+        fseek($filehandle, 34);
         $pos = 34;
 
-        while (!feof($file_handle) && $pos < $eof) {
-            $datalen = $this->streamChunkSize;
-            if ($pos + $this->streamChunkSize > $eof) {
-                $datalen = $eof-$pos;
+        while (!feof($filehandle) && $pos < $eof) {
+            $datalen = $this->streamchunksize;
+            if ($pos + $this->streamchunksize > $eof) {
+                $datalen = $eof - $pos;
             }
-            $data = fread($file_handle, $datalen);
+            $data = fread($filehandle, $datalen);
             $pos += $datalen;
 
             $this->zipwrite($data);
         }
 
-        fclose($file_handle);
+        fclose($filehandle);
 
         unlink($tempzip);
     }
@@ -486,87 +816,102 @@ class LuciZip {
      * @return bool $success
      */
     public function finalize() {
-        if (!$this->isFinalized) {
-            if (strlen($this->streamFilePath) > 0) {
-                $this->closeStream();
+        if (!$this->isfinalized) {
+            if (strlen($this->streamfilepath) > 0) {
+                $this->closestream();
             }
-            $cd = implode("", $this->cdRec);
+            $cd = implode("", $this->cdrec);
 
-            $cdRecSize = pack("v", sizeof($this->cdRec));
-            $cdRec = $cd . self::ZIP_END_OF_CENTRAL_DIRECTORY
-            . $cdRecSize . $cdRecSize
+            $cdrecsize = pack("v", count($this->cdrec));
+            $cdrec = $cd . self::ZIP_END_OF_CENTRAL_DIRECTORY
+            . $cdrecsize . $cdrecsize
             . pack("VV", strlen($cd), $this->offset);
-            if (!empty($this->zipComment)) {
-                $cdRec .= pack("v", strlen($this->zipComment)) . $this->zipComment;
+            if (!empty($this->zipcomment)) {
+                $cdrec .= pack("v", strlen($this->zipcomment)) . $this->zipcomment;
             } else {
-                $cdRec .= "\x00\x00";
+                $cdrec .= "\x00\x00";
             }
 
-            $this->zipwrite($cdRec);
+            $this->zipwrite($cdrec);
 
-            $this->isFinalized = TRUE;
-            $this->cdRec = NULL;
+            $this->isfinalized = true;
+            $this->cdrec = null;
 
-            return TRUE;
+            return true;
         }
-        return FALSE;
+        return false;
     }
 
     /**
      * Get the handle ressource for the archive zip file.
-     * If the zip haven't been finalized yet, this will cause it to become finalized
+     * If the zip hasn't been finalized yet, this will cause it to become finalized
      *
-     * @return zip file handle
+     * @return resource file handle
      */
-    public function getZipFile() {
-        if (!$this->isFinalized) {
+    public function getzipfile() {
+        if (!$this->isfinalized) {
             $this->finalize();
         }
 
         $this->zipflush();
 
-        rewind($this->zipFile);
+        rewind($this->zipfile);
 
-        return $this->zipFile;
+        return $this->zipfile;
     }
 
     /**
      * Get the zip file contents
-     * If the zip haven't been finalized yet, this will cause it to become finalized
+     * If the zip hasn't been finalized yet, this will cause it to become finalized
      *
-     * @return zip data
+     * @return string data
      */
-    public function getZipData() {
-        if (!$this->isFinalized) {
+    public function getzipdata() {
+        if (!$this->isfinalized) {
             $this->finalize();
         }
-        if (!is_resource($this->zipFile)) {
-            return $this->zipData;
+        if (!is_resource($this->zipfile)) {
+            return $this->zipdata;
         } else {
-            rewind($this->zipFile);
-            $filestat = fstat($this->zipFile);
-            return fread($this->zipFile, $filestat['size']);
+            rewind($this->zipfile);
+            $filestat = fstat($this->zipfile);
+            return fread($this->zipfile, $filestat['size']);
         }
     }
 
     /**
      * Send the archive as a zip download
      *
-     * @param String $fileName The name of the Zip archive, in ISO-8859-1 (or ASCII) encoding, ie. "archive.zip". Optional, defaults to NULL, which means that no ISO-8859-1 encoded file name will be specified.
-     * @param String $contentType Content mime type. Optional, defaults to "application/zip".
-     * @param String $utf8FileName The name of the Zip archive, in UTF-8 encoding. Optional, defaults to NULL, which means that no UTF-8 encoded file name will be specified.
+     * @param String $filename The name of the Zip archive, in ISO-8859-1 (or ASCII) encoding,
+     *                         ie. "archive.zip". Optional, defaults to NULL, which means that
+     *                         no ISO-8859-1 encoded file name will be specified.
+     * @param String $contenttype Content mime type. Optional, defaults to "application/zip".
+     * @param String $utf8filename The name of the Zip archive, in UTF-8 encoding. Optional, defaults
+     *                             to NULL, which means that no UTF-8 encoded file name will be specified.
      * @param bool $inline Use Content-Disposition with "inline" instead of "attached". Optional, defaults to FALSE.
+     *
      * @return bool $success
      */
-    function sendZip($fileName = null, $contentType = "application/zip", $utf8FileName = null, $inline = false) {
-        if (!$this->isFinalized) {
+    public function sendzip($filename = null, $contenttype = "application/zip", $utf8filename = null, $inline = false) {
+        if (!$this->isfinalized) {
             $this->finalize();
         }
 
-        $headerFile = null;
-        $headerLine = null;
-        if (!headers_sent($headerFile, $headerLine) or die("<p><strong>Error:</strong> Unable to send file $fileName. HTML Headers have already been sent from <strong>$headerFile</strong> in line <strong>$headerLine</strong></p>")) {
-            if ((ob_get_contents() === FALSE || ob_get_contents() == '') or die("\n<p><strong>Error:</strong> Unable to send file <strong>$fileName</strong>. Output buffer contains the following text (typically warnings or errors):<br>" . htmlentities(ob_get_contents()) . "</p>")) {
+        $headerfile = null;
+        $headerline = null;
+        if (!headers_sent($headerfile, $headerline)
+            or die(
+                "<p><strong>Error:</strong> Unable to send file $filename. HTML Headers have already been sent from "
+                . "<strong>$headerfile</strong> in line <strong>$headerline</strong></p>"
+            )
+        ) {
+            if ((ob_get_contents() === false || ob_get_contents() == '')
+                or die(
+                    "\n<p><strong>Error:</strong> Unable to send file <strong>$filename</strong>. "
+                    . "Output buffer contains the following text (typically warnings or errors):<br>"
+                    . htmlentities(ob_get_contents()) . "</p>"
+                )
+            ) {
                 if (ini_get('zlib.output_compression')) {
                     ini_set('zlib.output_compression', 'Off');
                 }
@@ -576,32 +921,35 @@ class LuciZip {
                 header("Expires: 0");
                 header("Accept-Ranges: bytes");
                 header("Connection: close");
-                header("Content-Type: " . $contentType);
+                header("Content-Type: " . $contenttype);
                 $cd = "Content-Disposition: ";
-                if ($inline)
+                if ($inline) {
                     $cd .= "inline";
-                else
-                    $cd .= "attached";
-                if ($fileName)
-                    $cd .= '; filename="' . $fileName . '"';
-                if ($utf8FileName)
-                    $cd .= "; filename*=UTF-8''" . rawurlencode($utf8FileName);
-                header($cd);
-                header("Content-Length: ". $this->getArchiveSize());
-
-                if (!is_resource($this->zipFile)) {
-                    echo $this->zipData;
                 } else {
-                    rewind($this->zipFile);
+                    $cd .= "attached";
+                }
+                if ($filename) {
+                    $cd .= '; filename="' . $filename . '"';
+                }
+                if ($utf8filename) {
+                    $cd .= "; filename*=UTF-8''" . rawurlencode($utf8filename);
+                }
+                header($cd);
+                header("Content-Length: ". $this->getarchivesize());
 
-                    while (!feof($this->zipFile)) {
-                        echo fread($this->zipFile, $this->streamChunkSize);
+                if (!is_resource($this->zipfile)) {
+                    echo $this->zipdata;
+                } else {
+                    rewind($this->zipfile);
+
+                    while (!feof($this->zipfile)) {
+                        echo fread($this->zipfile, $this->streamchunksize);
                     }
                 }
             }
-            return TRUE;
+            return true;
         }
-        return FALSE;
+        return false;
     }
 
     /**
@@ -609,11 +957,11 @@ class LuciZip {
      *
      * @return $size Size of the archive
      */
-    public function getArchiveSize() {
-        if (!is_resource($this->zipFile)) {
-            return strlen($this->zipData);
+    public function getarchivesize() {
+        if (!is_resource($this->zipfile)) {
+            return strlen($this->zipdata);
         }
-        $filestat = fstat($this->zipFile);
+        $filestat = fstat($this->zipfile);
 
         return $filestat['size'];
     }
@@ -622,16 +970,17 @@ class LuciZip {
      * Calculate the 2 byte dostime used in the zip entries.
      *
      * @param int $timestamp
+     *
      * @return 2-byte encoded DOS Date
      */
-    private function getDosTime($timestamp = 0) {
+    private function getdostime($timestamp = 0) {
         $timestamp = (int)$timestamp;
-        $oldTZ = @date_default_timezone_get();
+        $oldtz = @date_default_timezone_get();
         date_default_timezone_set('UTC');
         $date = ($timestamp == 0 ? getdate() : getdate($timestamp));
-        date_default_timezone_set($oldTZ);
+        date_default_timezone_set($oldtz);
         if ($date["year"] >= 1980) {
-            return pack("V", (($date["mday"] + ($date["mon"] << 5) + (($date["year"]-1980) << 9)) << 16) |
+            return pack("V", (($date["mday"] + ($date["mon"] << 5) + (($date["year"] - 1980) << 9)) << 16) |
                     (($date["seconds"] >> 1) + ($date["minutes"] << 5) + ($date["hours"] << 11)));
         }
         return "\x00\x00\x00\x00";
@@ -640,93 +989,128 @@ class LuciZip {
     /**
      * Build the Zip file structures
      *
-     * @param string $filePath
-     * @param string $fileComment
-     * @param string $gpFlags
-     * @param string $gzType
+     * @param string $filepath
+     * @param string $filecomment
+     * @param string $gpflags
+     * @param string $gztype
      * @param int    $timestamp
-     * @param string $fileCRC32
-     * @param int    $gzLength
-     * @param int    $dataLength
-     * @param int    $extFileAttr Use self::EXT_FILE_ATTR_FILE for files, self::EXT_FILE_ATTR_DIR for Directories.
+     * @param string $filecrc32
+     * @param int    $gzlength
+     * @param int    $datalength
+     * @param int    $extfileattr Use self::EXT_FILE_ATTR_FILE for files, self::EXT_FILE_ATTR_DIR for Directories.
      */
-    private function buildZipEntry($filePath, $fileComment, $gpFlags, $gzType, $timestamp, $fileCRC32, $gzLength, $dataLength, $extFileAttr) {
-        $filePath = str_replace("\\", "/", $filePath);
-        $fileCommentLength = (empty($fileComment) ? 0 : strlen($fileComment));
+    private function buildzipentry(
+        $filepath,
+        $filecomment,
+        $gpflags,
+        $gztype,
+        $timestamp,
+        $filecrc32,
+        $gzlength,
+        $datalength,
+        $extfileattr
+    ) {
+        $filepath = str_replace("\\", "/", $filepath);
+        $filecommentlength = (empty($filecomment) ? 0 : strlen($filecomment));
         $timestamp = (int)$timestamp;
         $timestamp = ($timestamp == 0 ? time() : $timestamp);
 
-        $dosTime = $this->getDosTime($timestamp);
-        $tsPack = pack("V", $timestamp);
+        $dostime = $this->getdostime($timestamp);
+        $tspack = pack("V", $timestamp);
 
         $ux = "\x75\x78\x0B\x00\x01\x04\xE8\x03\x00\x00\x04\x00\x00\x00\x00";
 
-        if (!isset($gpFlags) || strlen($gpFlags) != 2) {
-            $gpFlags = "\x00\x00";
+        if (!isset($gpflags) || strlen($gpflags) != 2) {
+            $gpflags = "\x00\x00";
         }
 
-        $isFileUTF8 = mb_check_encoding($filePath, "UTF-8") && !mb_check_encoding($filePath, "ASCII");
-        $isCommentUTF8 = !empty($fileComment) && mb_check_encoding($fileComment, "UTF-8") && !mb_check_encoding($fileComment, "ASCII");
-        if ($isFileUTF8 || $isCommentUTF8) {
+        $isfileutf8 = mb_check_encoding($filepath, "UTF-8")
+            && !mb_check_encoding($filepath, "ASCII");
+        $iscommentutf8 = !empty($filecomment)
+            && mb_check_encoding($filecomment, "UTF-8")
+            && !mb_check_encoding($filecomment, "ASCII");
+        if ($isfileutf8 || $iscommentutf8) {
             $flag = 0;
-            $gpFlagsV = unpack("vflags", $gpFlags);
-            if (isset($gpFlagsV['flags'])) {
-                $flag = $gpFlagsV['flags'];
+            $gpflagsv = unpack("vflags", $gpflags);
+            if (isset($gpflagsv['flags'])) {
+                $flag = $gpflagsv['flags'];
             }
-            $gpFlags = pack("v", $flag | (1 << 11));
+            $gpflags = pack("v", $flag | (1 << 11));
         }
 
-        $header = $gpFlags . $gzType . $dosTime. $fileCRC32
-        . pack("VVv", $gzLength, $dataLength, strlen($filePath)); // File name length
+        // File name length.
+        $header = $gpflags
+            . $gztype
+            . $dostime
+            . $filecrc32
+            . pack("VVv", $gzlength, $datalength, strlen($filepath));
 
-        $zipEntry  = self::ZIP_LOCAL_FILE_HEADER;
-        $zipEntry .= self::ATTR_VERSION_TO_EXTRACT;
-        $zipEntry .= $header;
-        $zipEntry .= pack("v", ($this->addExtraField ? 28 : 0)); // Extra field length
-        $zipEntry .= $filePath; // FileName
-        // Extra fields
-        if ($this->addExtraField) {
-            $zipEntry .= "\x55\x54\x09\x00\x03" . $tsPack . $tsPack . $ux;
+        $zipentry  = self::ZIP_LOCAL_FILE_HEADER;
+        $zipentry .= self::ATTR_VERSION_TO_EXTRACT;
+        $zipentry .= $header;
+        // Extra field length.
+        $zipentry .= pack("v", ($this->addextrafield ? 28 : 0));
+        // Filename.
+        $zipentry .= $filepath;
+        // Extra fields.
+        if ($this->addextrafield) {
+            $zipentry .= "\x55\x54\x09\x00\x03" . $tspack . $tspack . $ux;
         }
-        $this->zipwrite($zipEntry);
+        $this->zipwrite($zipentry);
 
-        $cdEntry  = self::ZIP_CENTRAL_FILE_HEADER;
-        $cdEntry .= self::ATTR_MADE_BY_VERSION;
-        $cdEntry .= ($dataLength === 0 ? "\x0A\x00" : self::ATTR_VERSION_TO_EXTRACT);
-        $cdEntry .= $header;
-        $cdEntry .= pack("v", ($this->addExtraField ? 24 : 0)); // Extra field length
-        $cdEntry .= pack("v", $fileCommentLength); // File comment length
-        $cdEntry .= "\x00\x00"; // Disk number start
-        $cdEntry .= "\x00\x00"; // internal file attributes
-        $cdEntry .= pack("V", $extFileAttr); // External file attributes
-        $cdEntry .= pack("V", $this->offset); // Relative offset of local header
-        $cdEntry .= $filePath; // FileName
-        // Extra fields
-        if ($this->addExtraField) {
-            $cdEntry .= "\x55\x54\x05\x00\x03" . $tsPack . $ux;
+        $cdentry  = self::ZIP_CENTRAL_FILE_HEADER;
+        $cdentry .= self::ATTR_MADE_BY_VERSION;
+        $cdentry .= ($datalength === 0 ? "\x0A\x00" : self::ATTR_VERSION_TO_EXTRACT);
+        $cdentry .= $header;
+        // Extra field length.
+        $cdentry .= pack("v", ($this->addextrafield ? 24 : 0));
+        // File comment length.
+        $cdentry .= pack("v", $filecommentlength);
+        // Disk number start.
+        $cdentry .= "\x00\x00";
+        // Internal file attributes.
+        $cdentry .= "\x00\x00";
+        // External file attributes.
+        $cdentry .= pack("V", $extfileattr);
+        // Relative offset of local header.
+        $cdentry .= pack("V", $this->offset);
+        // Filename.
+        $cdentry .= $filepath;
+        // Extra fields.
+        if ($this->addextrafield) {
+            $cdentry .= "\x55\x54\x05\x00\x03" . $tspack . $ux;
         }
-        if (!empty($fileComment)) {
-            $cdEntry .= $fileComment; // Comment
+        if (!empty($filecomment)) {
+            // Comment.
+            $cdentry .= $filecomment;
         }
 
-        $this->cdRec[] = $cdEntry;
-        $this->offset += strlen($zipEntry) + $gzLength;
+        $this->cdrec[] = $cdentry;
+        $this->offset += strlen($zipentry) + $gzlength;
     }
 
+    /**
+     * Writes to the ZIP file.
+     *
+     * @param string $data
+     */
     private function zipwrite($data) {
-        if (!is_resource($this->zipFile)) {
-            $this->zipData .= $data;
+        if (!is_resource($this->zipfile)) {
+            $this->zipdata .= $data;
         } else {
-            fwrite($this->zipFile, $data);
-            fflush($this->zipFile);
+            fwrite($this->zipfile, $data);
+            fflush($this->zipfile);
         }
     }
 
+    /**
+     * Dumps the content to the ZIP file.
+     */
     private function zipflush() {
-        if (!is_resource($this->zipFile)) {
-            $this->zipFile = tmpfile();
-            fwrite($this->zipFile, $this->zipData);
-            $this->zipData = NULL;
+        if (!is_resource($this->zipfile)) {
+            $this->zipfile = tmpfile();
+            fwrite($this->zipfile, $this->zipdata);
+            $this->zipdata = null;
         }
     }
 
@@ -736,32 +1120,33 @@ class LuciZip {
      * @param string $dir
      * @param string $file
      */
-    public static function pathJoin($dir, $file) {
+    public static function pathjoin($dir, $file) {
         if (empty($dir) || empty($file)) {
-            return self::getRelativePath($dir . $file);
+            return self::getrelativepath($dir . $file);
         }
-        return self::getRelativePath($dir . '/' . $file);
+        return self::getrelativepath($dir . '/' . $file);
     }
 
     /**
      * Clean up a path, removing any unnecessary elements such as /./, // or redundant ../ segments.
      * If the path starts with a "/", it is deemed an absolute path and any /../ in the beginning is stripped off.
      * The returned path will not end in a "/".
-	 *
-	 * Sometimes, when a path is generated from multiple fragments, 
-	 *  you can get something like "../data/html/../images/image.jpeg"
-	 * This will normalize that example path to "../data/images/image.jpeg"
+     *
+     * Sometimes, when a path is generated from multiple fragments,
+     *  you can get something like "../data/html/../images/image.jpeg"
+     * This will normalize that example path to "../data/images/image.jpeg"
      *
      * @param string $path The path to clean up
+     *
      * @return string the clean path
      */
-    public static function getRelativePath($path) {
+    public static function getrelativepath($path) {
         $path = preg_replace("#/+\.?/+#", "/", str_replace("\\", "/", $path));
         $dirs = explode("/", rtrim(preg_replace('#^(?:\./)+#', '', $path), '/'));
 
         $offset = 0;
         $sub = 0;
-        $subOffset = 0;
+        $suboffset = 0;
         $root = "";
 
         if (empty($dirs[0])) {
@@ -772,16 +1157,16 @@ class LuciZip {
             $dirs = array_splice($dirs, 1);
         }
 
-        $newDirs = array();
+        $newdirs = array();
         foreach ($dirs as $dir) {
             if ($dir !== "..") {
-                $subOffset--;
-                $newDirs[++$offset] = $dir;
+                $suboffset--;
+                $newdirs[++$offset] = $dir;
             } else {
-                $subOffset++;
+                $suboffset++;
                 if (--$offset < 0) {
                     $offset = 0;
-                    if ($subOffset > $sub) {
+                    if ($suboffset > $sub) {
                         $sub++;
                     }
                 }
@@ -791,37 +1176,37 @@ class LuciZip {
         if (empty($root)) {
             $root = str_repeat("../", $sub);
         }
-        return $root . implode("/", array_slice($newDirs, 0, $offset));
+        return $root . implode("/", array_slice($newdirs, 0, $offset));
     }
 
-	/**
-	 * Create the file permissions for a file or directory, for use in the extFileAttr parameters.
-	 *
-	 * @param int   $owner Unix permisions for owner (octal from 00 to 07)
-	 * @param int   $group Unix permisions for group (octal from 00 to 07)
-	 * @param int   $other Unix permisions for others (octal from 00 to 07)
-	 * @param bool  $isFile
-	 * @return EXTRERNAL_REF field.
-	 */
-	public static function generateExtAttr($owner = 07, $group = 05, $other = 05, $isFile = true) {
-		$fp = $isFile ? self::S_IFREG : self::S_IFDIR;
-		$fp |= (($owner & 07) << 6) | (($group & 07) << 3) | ($other & 07);
+    /**
+     * Create the file permissions for a file or directory, for use in the extfileattr parameters.
+     *
+     * @param int   $owner Unix permisions for owner (octal from 00 to 07)
+     * @param int   $group Unix permisions for group (octal from 00 to 07)
+     * @param int   $other Unix permisions for others (octal from 00 to 07)
+     * @param bool  $isfile
+     *
+     * @return external|false field.
+     */
+    public static function generateextattr($owner = 07, $group = 05, $other = 05, $isfile = true) {
+        $fp = $isfile ? self::S_IFREG : self::S_IFDIR;
+        $fp |= (($owner & 07) << 6) | (($group & 07) << 3) | ($other & 07);
 
-		return ($fp << 16) | ($isFile ? self::S_DOS_A : self::S_DOS_D);
-	}
+        return ($fp << 16) | ($isfile ? self::S_DOS_A : self::S_DOS_D);
+    }
 
-	/**
-	 * Get the file permissions for a file or directory, for use in the extFileAttr parameters.
-	 *
-	 * @param string $filename
-	 * @return external ref field, or FALSE if the file is not found.
-	 */
-	public static function getFileExtAttr($filename) {
-		if (file_exists($filename)) {
-			$fp = fileperms($filename) << 16;
-			return $fp | (is_dir($filename) ? self::S_DOS_D : self::S_DOS_A);
-		}
-		return FALSE;
-	}
+    /**
+     * Get the file permissions for a file or directory, for use in the extfileattr parameters.
+     *
+     * @param string $filename
+     * @return external|false ref field, or FALSE if the file is not found.
+     */
+    public static function getfileextattr($filename) {
+        if (file_exists($filename)) {
+            $fp = fileperms($filename) << 16;
+            return $fp | (is_dir($filename) ? self::S_DOS_D : self::S_DOS_A);
+        }
+        return false;
+    }
 }
-?>

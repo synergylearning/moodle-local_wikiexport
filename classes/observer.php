@@ -24,8 +24,9 @@
 
 namespace local_wikiexport;
 
-defined('MOODLE_INTERNAL') || die();
-
+/**
+ * The plugin's observer class.
+ */
 class observer {
     /**
      * Clean up any local_wikiexport_order records associated with the deleted course.

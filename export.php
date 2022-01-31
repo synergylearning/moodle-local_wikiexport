@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
- 
+
 /**
  * Main entry point for export
  *
@@ -21,7 +21,7 @@
  * @copyright 2014 Davo Smith, Synergy Learning
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
- 
+
 require_once(dirname(__FILE__).'/../../config.php');
 global $CFG, $DB, $USER, $PAGE;
 require_once($CFG->dirroot.'/local/wikiexport/lib.php');
