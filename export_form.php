@@ -42,13 +42,26 @@ class export_form extends moodleform {
         $mform->addElement('header', 'exportformheader', get_string('exportformheader', 'local_wikiexport'));
 
         // Adding tags checkboxes.
-        $this->add_checkbox_controller(1);
+        $this->add_checkbox_controller(1, null, null, 1);
         foreach ($customdata->wikitags as $key => $value) {
             $mform->addElement('advcheckbox', $key, $value, null, array('group' => 1));
             $mform->setDefault($key, 1);
         }
 
         // Adding action buttons.
-        $this->add_action_buttons(false, get_string('export', 'local_wikiexport'));
+        $submitbutton = '<div class="form-group">
+            <button type="submit" id="submitbutton" name="submitbutton" class="btn btn-primary">'
+            .get_string('export', 'local_wikiexport').
+            '</button></div>';
+        $returnbutton = '<div class="form-group">
+            <a href="'.$customdata->wikiurl.'" class="btn btn-secondary">'
+            .get_string('returntowiki', 'local_wikiexport').
+            '</a></div>';
+
+        $buttonarray = array();
+        $buttonarray[] = $mform->createElement('html', $returnbutton);
+        $buttonarray[] = $mform->createElement('html', $submitbutton);
+        $mform->addGroup($buttonarray, 'buttonar', '', array(' '), false);
+        $mform->closeHeaderBefore('buttonar');
     }
 }

@@ -55,7 +55,12 @@ if ($user) {
 if ($group) {
     $url->param('groupid', $group->id);
 }
+
+$modulecontext = context_module::instance($cm->id);
+$PAGE->set_context($modulecontext);
 $PAGE->set_url($url);
+$PAGE->set_title(format_string(get_string('exportwithtags', 'local_wikiexport')));
+$PAGE->set_heading(format_string($course->fullname));
 
 require_login($course, false, $cm);
 
@@ -64,8 +69,10 @@ $wikipagestags = get_wiki_pages_tags($wiki->id, $course->id);
 
 if (!empty($wikipagestags)) {
     // Instantiate export_form.
+    $wikiurl = new moodle_url('/mod/wiki/view.php', array('id' => $cm->id));
     $customdata = new stdClass();
     $customdata->wikitags = $wikipagestags;
+    $customdata->wikiurl = $wikiurl;
     $mform = new export_form($url, $customdata);
 
     // Form processing.
@@ -91,5 +98,3 @@ if (!empty($wikipagestags)) {
     $export->check_access();
     $export->export();
 }
-
-
