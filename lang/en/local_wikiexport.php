@@ -32,6 +32,7 @@ $string['filename'] = 'Export {$a->wikiname} {$a->timestamp}';
 $string['modified'] = 'Last modified by {$a->modifiedby} on {$a->timemodified}';
 $string['pluginname'] = 'Wiki export';
 $string['printed'] = 'This document was downloaded on {$a}';
+$string['privacy:metadata'] = 'The Wikiexport plugin does not store any personal data.';
 $string['publishemail'] = 'Auto-publish email';
 $string['publishemail_desc'] = 'The email address that PDFs will be sent to automatically whenever a wiki changes';
 $string['publishername'] = 'Unknown';
