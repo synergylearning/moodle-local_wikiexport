@@ -778,7 +778,8 @@ function local_wikiexport_extend_navigation($unused) {
     // Use javascript to insert the pdf/epub links.
     $jslinks = array();
     foreach ($links as $name => $url) {
-        $link = html_writer::link($url, $name);
+        $id = str_replace(' ', '-', strtolower($name));
+        $link = html_writer::link($url, $name, array('id' => $id));
         $link = html_writer::div($link, 'wiki_right');
         $jslinks[] = $link;
     }
