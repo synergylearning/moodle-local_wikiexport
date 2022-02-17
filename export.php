@@ -25,6 +25,7 @@
 require_once(dirname(__FILE__).'/../../config.php');
 global $CFG, $DB, $USER, $PAGE;
 require_once($CFG->dirroot.'/local/wikiexport/lib.php');
+require_once($CFG->dirroot.'/local/wikiexport/export_form.php');
 
 $cmid = required_param('id', PARAM_INT);
 $exporttype = required_param('type', PARAM_ALPHA);
@@ -58,6 +59,37 @@ $PAGE->set_url($url);
 
 require_login($course, false, $cm);
 
-$export = new local_wikiexport($cm, $wiki, $exporttype, $user, $group);
-$export->check_access();
-$export->export();
+// Get wiki pages tags.
+$wikipagestags = get_wiki_pages_tags($wiki->id, $course->id);
+
+if (!empty($wikipagestags)) {
+    // Instantiate export_form.
+    $customdata = new stdClass();
+    $customdata->wikitags = $wikipagestags;
+    $mform = new export_form($url, $customdata);
+
+    // Form processing.
+    if ($formdata = $mform->get_data()) {
+
+        $selectedtags = array();
+        foreach (array_keys($wikipagestags) as $tag) {
+            if ($formdata->$tag) {
+                array_push($selectedtags, $tag);
+            }
+        }
+
+        $export = new local_wikiexport($cm, $wiki, $exporttype, $user, $group, $selectedtags);
+        $export->check_access();
+        $export->export();
+    }
+
+    echo $OUTPUT->header();
+    $mform->display();
+    echo $OUTPUT->footer();
+} else {
+    $export = new local_wikiexport($cm, $wiki, $exporttype, $user, $group);
+    $export->check_access();
+    $export->export();
+}
+
+

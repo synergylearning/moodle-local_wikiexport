@@ -44,6 +44,9 @@ class local_wikiexport {
     protected $userid;
     /** @var object */
     protected $groupid;
+    /** @var array */
+    protected $selectedtags;
+
 
     /**
      * 'epub' constant.
@@ -72,8 +75,9 @@ class local_wikiexport {
      * @param string $exporttype
      * @param int $userid
      * @param int $groupid
+     * @param array $selectedtags
      */
-    public function __construct($cm, $wiki, $exporttype, $userid = 0, $groupid = 0) {
+    public function __construct($cm, $wiki, $exporttype, $userid = 0, $groupid = 0, $selectedtags = array()) {
         $this->cm = $cm;
         $this->wiki = $wiki;
         if (in_array($exporttype, self::$exporttypes)) {
@@ -94,6 +98,7 @@ class local_wikiexport {
             $this->groupid = 0;
         }
         $this->wikiinfo = new local_wikiexport_info();
+        $this->selectedtags = $selectedtags;
     }
 
     /**
@@ -375,6 +380,9 @@ class local_wikiexport {
                  ORDER BY xo.sortorder, p.title";
         $params = array('subwikiid' => $subwiki->id);
         $pages = $DB->get_records_sql($sql, $params);
+        if (!empty($this->selectedtags)) {
+            $pages = $this->filter_pages($pages);
+        }
         $pageids = array_keys($pages);
         foreach ($pages as $id => $page) {
             if ($page->title == $this->wiki->firstpagetitle) {
@@ -398,6 +406,22 @@ class local_wikiexport {
 
             // Note created/modified time (if earlier / later than already recorded).
             $this->wikiinfo->update_times($page->timecreated, $page->timemodified, $page->userid);
+        }
+
+        return $pages;
+    }
+
+    /**
+     * Filter wiki pages based on selected tags.
+     * @param object $pages
+     * @return array
+     */
+    protected function filter_pages($pages) {
+        foreach ($pages as $id => $page) {
+            $pagetags = array_keys(core_tag_tag::get_item_tags_array('mod_wiki', 'wiki_pages', $page->id));
+            if (empty(array_intersect($pagetags, $this->selectedtags))) {
+                unset($pages[$id]);
+            }
         }
 
         return $pages;

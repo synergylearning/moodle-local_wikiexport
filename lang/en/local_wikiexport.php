@@ -25,7 +25,9 @@
 defined('MOODLE_INTERNAL') || die();
 
 $string['created'] = 'Created on {$a}';
+$string['export'] = 'Export';
 $string['exportepub'] = 'Export as epub';
+$string['exportformheader'] = 'Export pages with the following tags';
 $string['exportpdf'] = 'Export as PDF';
 $string['failedinsertimage'] = 'Failed to insert image: {$a}';
 $string['filename'] = 'Export {$a->wikiname} {$a->timestamp}';
