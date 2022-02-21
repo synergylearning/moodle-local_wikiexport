@@ -22,8 +22,16 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
+/**
+ * Sets some database values upon plugin upgrade.
+ *
+ * @param int $oldversion
+ *
+ * @return bool
+ *
+ * @throws dml_exception
+ * @throws moodle_exception
+ */
 function xmldb_local_wikiexport_upgrade($oldversion = 0) {
     global $DB;
     $dbman = $DB->get_manager();
@@ -113,5 +121,5 @@ function xmldb_local_wikiexport_upgrade($oldversion = 0) {
         upgrade_plugin_savepoint(true, 2015071300, 'local', 'wikiexport');
     }
 
-   return true;
+    return true;
 }
