@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
- 
+
 /**
  * Language strings
  *
@@ -21,7 +21,7 @@
  * @copyright 2014 Davo Smith, Synergy Learning
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
- 
+
 defined('MOODLE_INTERNAL') || die();
 
 $string['created'] = 'Created on {$a}';
@@ -37,6 +37,7 @@ $string['publishemail_desc'] = 'The email address that PDFs will be sent to auto
 $string['publishername'] = 'Unknown';
 $string['sortpages'] = 'Sort pages for export';
 $string['sortpagesintro'] = 'This is the order in which pages will currently be exported - please move pages into the order you would like them to be exported';
+$string['task:emailwikis'] = 'Send updated wikis by email';
 $string['wikiexport:exportepub'] = 'Export wiki as epub';
 $string['wikiexport:exportpdf'] = 'Export wiki as PDF';
 $string['wikiexportfailed'] = 'Export of wiki \'{$a}\' failed';

@@ -15,21 +15,22 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information
+ * Send out updated wikis by email
  *
  * @package   local_wikiexport
- * @copyright 2014 Davo Smith, Synergy Learning
+ * @copyright 2023 Synergy Learning
+ * @author    Davo Smith
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+namespace local_wikiexport\task;
 
-$plugin->version   = 2023050200;
-$plugin->requires  = 2021051700; // Moodle 3.11.
-$plugin->component = 'local_wikiexport';
-$plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '3.11.0 (Build: 2023050200)';
+class email_wikis extends \core\task\scheduled_task {
+    public function get_name() {
+        return get_string('task:emailwikis', 'local_wikiexport');
+    }
 
-$plugin->dependencies = array(
-    'mod_wiki' => ANY_VERSION,
-);
+    public function execute() {
+        \local_wikiexport\export::cron();
+    }
+}

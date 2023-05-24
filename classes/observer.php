@@ -42,7 +42,7 @@ class observer {
      */
     public static function course_module_deleted(\core\event\course_module_deleted $event) {
         global $DB;
-        if ($event->other['modulename'] != 'wiki') {
+        if ($event->other['modulename'] !== 'wiki') {
             return; // Nothing to do if it is not a wiki which was deleted.
         }
         $DB->delete_records('local_wikiexport_order', ['cmid' => $event->contextinstanceid]);

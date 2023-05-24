@@ -24,7 +24,7 @@
 
 define('AJAX_SCRIPT', true);
 
-require_once(dirname(__FILE__).'/../../config.php');
+require_once(__DIR__.'/../../config.php');
 global $CFG, $DB, $USER, $PAGE, $OUTPUT;
 require_once($CFG->dirroot.'/local/wikiexport/lib.php');
 
@@ -36,7 +36,7 @@ $user = null;
 $cm = get_coursemodule_from_id('wiki', $cmid, 0, false, MUST_EXIST);
 $course = $DB->get_record('course', array('id' => $cm->course), '*', MUST_EXIST);
 $wiki = $DB->get_record('wiki', array('id' => $cm->instance), '*', MUST_EXIST);
-if ($wiki->wikimode == 'individual') {
+if ($wiki->wikimode === 'individual') {
     $userid = required_param('userid', PARAM_INT);
     if ($userid == $USER->id) {
         $user = $USER;
@@ -60,6 +60,6 @@ $PAGE->set_url($url);
 
 require_login($course, false, $cm);
 
-$sortpages = new local_wikiexport_sortpages($cm, $wiki, $user, $group);
+$sortpages = new \local_wikiexport\sortpages($cm, $wiki, $user, $group);
 $sortpages->check_access();
 $sortpages->process($action);
