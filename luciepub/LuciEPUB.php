@@ -38,6 +38,9 @@ class LuciEPUB {
     protected $counter = 1;
     protected $extra = array();
 
+    protected $items = [];
+    protected $headers = [];
+
     protected function generate_id($spine = FALSE) {
 	if ($spine)
 	    return 'luci' . $this->spine_counter++;
