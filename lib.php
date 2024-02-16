@@ -27,14 +27,11 @@ defined('MOODLE_INTERNAL') || die();
 /**
  * Insert the 'Export as epub' and 'Export as PDF' links into the navigation.
  *
- * @param $unused
+ * @param navigation_node $settingsnav
  */
-function local_wikiexport_extends_navigation($unused) {
-    local_wikiexport_extend_navigation($unused);
-}
-
-function local_wikiexport_extend_navigation($unused) {
+function local_wikiexport_extend_settings_navigation(navigation_node $settingsnav) {
     global $PAGE, $DB, $USER;
+
     if (!$PAGE->cm || $PAGE->cm->modname !== 'wiki') {
         return;
     }
@@ -54,23 +51,14 @@ function local_wikiexport_extend_navigation($unused) {
     if (!$links = \local_wikiexport\export::get_links($PAGE->cm, $userid, $groupid)) {
         return;
     }
-    $settingsnav = $PAGE->settingsnav;
-    $modulesettings = $settingsnav->get('modulesettings');
+    $modulesettings = $settingsnav->find('modulesettings', navigation_node::TYPE_SETTING);
     if (!$modulesettings) {
-        $modulesettings = $settingsnav->prepend(get_string('pluginadministration', 'mod_wiki'), null,
-                                                navigation_node::TYPE_SETTING, null, 'modulesettings');
+        $modulesettings = $settingsnav->add(
+            get_string('pluginadministration', 'mod_wiki'), null,
+            navigation_node::TYPE_SETTING, null, 'modulesettings');
     }
 
     foreach ($links as $name => $url) {
         $modulesettings->add($name, $url, navigation_node::TYPE_SETTING);
     }
-
-    // Use javascript to insert the pdf/epub links.
-    $jslinks = array();
-    foreach ($links as $name => $url) {
-        $link = html_writer::link($url, $name);
-        $link = html_writer::div($link, 'wiki_right');
-        $jslinks[] = $link;
-    }
-    $PAGE->requires->yui_module('moodle-local_wikiexport-printlinks', 'M.local_wikiexport.printlinks.init', array($jslinks));
 }

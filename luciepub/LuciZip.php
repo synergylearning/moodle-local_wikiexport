@@ -406,7 +406,7 @@ class LuciZip {
      * @return bool $success
      */
     public function closeStream() {
-        if ($this->isFinalized || strlen($this->streamFilePath) == 0) {
+        if ($this->isFinalized || !$this->streamFilePath) {
             return FALSE;
         }
 
@@ -487,7 +487,7 @@ class LuciZip {
      */
     public function finalize() {
         if (!$this->isFinalized) {
-            if (strlen($this->streamFilePath) > 0) {
+            if (!$this->streamFilePath) {
                 $this->closeStream();
             }
             $cd = implode("", $this->cdRec);
